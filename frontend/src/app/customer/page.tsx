@@ -1,0 +1,368 @@
+"use client";
+
+import { useState, useEffect } from 'react';
+import { Wrench, Zap, Hammer, Paintbrush, ThermometerSnowflake, Droplet, Tv, Sparkles, Bug, Car } from 'lucide-react';
+import { api } from '@/lib/api';
+import { useStomp } from '@/hooks/useStomp';
+
+export default function CustomerApp() {
+  const [bookingStatus, setBookingStatus] = useState<'IDLE' | 'SEARCHING' | 'ACCEPTED' | 'COMPLETED' | 'FEEDBACK'>('IDLE');
+  const [selectedDomain, setSelectedDomain] = useState('maintenance');
+  const [selectedService, setSelectedService] = useState('plumber');
+  const [sosActive, setSosActive] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [bookingId, setBookingId] = useState<string | null>(null);
+  
+  const { client, connected } = useStomp();
+
+  useEffect(() => {
+    if (client && connected && bookingId) {
+      const sub = client.subscribe(`/topic/booking/${bookingId}`, (message) => {
+        const data = JSON.parse(message.body);
+        if (data.event === 'STATUS_CHANGED') {
+          setBookingStatus(data.payload.status);
+        }
+      });
+      return () => sub.unsubscribe();
+    }
+  }, [client, connected, bookingId]);
+
+  const handleBookService = async () => {
+    setBookingStatus('SEARCHING');
+    
+    try {
+      const response = await api.post('/bookings', {
+        serviceType: selectedService,
+        categoryType: selectedDomain,
+        bookingType: 'INSTANT',
+        latitude: 12.9716, // Mock location Bangalore
+        longitude: 77.5946
+      });
+      setBookingId(response.data.booking_id);
+    } catch (err) {
+      console.error("Failed to create booking:", err);
+    }
+  };
+
+  const handleSOS = async () => {
+    setSosActive(true);
+    try {
+      await api.post('/safety/sos', { bookingId: bookingId || 'mock', latitude: 12.97, longitude: 77.59, telemetry: { battery: 80 } });
+    } catch (err) {
+      console.error("Failed to ping real SOS API:", err);
+    }
+  };
+
+  const handleSimulateCompletion = async () => {
+    try {
+      await api.post(`/bookings/${bookingId}/verify-otp-complete`, { enteredOtp: "482910" });
+    } catch (err) {
+      console.error(err);
+    }
+    setBookingStatus('COMPLETED');
+  };
+
+  const handlePayment = () => {
+    setTimeout(() => {
+      setBookingStatus('FEEDBACK');
+    }, 1500);
+  };
+
+  const domains = [
+    { id: 'maintenance', label: 'Home Maintenance' },
+    { id: 'appliances', label: 'Appliance Servicing' },
+    { id: 'cleaning', label: 'Deep Cleaning' },
+    { id: 'auto', label: 'Auto Mechanics' }
+  ];
+
+  const servicesByDomain: Record<string, {id: string, icon: JSX.Element, label: string}[]> = {
+    maintenance: [
+      { id: 'plumber', icon: <Wrench className="w-8 h-8" />, label: 'Plumber' },
+      { id: 'electrician', icon: <Zap className="w-8 h-8" />, label: 'Electrician' },
+      { id: 'carpenter', icon: <Hammer className="w-8 h-8" />, label: 'Carpenter' },
+      { id: 'painter', icon: <Paintbrush className="w-8 h-8" />, label: 'Painter' }
+    ],
+    appliances: [
+      { id: 'ac_repair', icon: <ThermometerSnowflake className="w-8 h-8" />, label: 'AC Repair' },
+      { id: 'washing_machine', icon: <Droplet className="w-8 h-8" />, label: 'Washing Mach.' },
+      { id: 'tv_repair', icon: <Tv className="w-8 h-8" />, label: 'TV Repair' }
+    ],
+    cleaning: [
+      { id: 'home_clean', icon: <Sparkles className="w-8 h-8" />, label: 'Full Home' },
+      { id: 'pest_control', icon: <Bug className="w-8 h-8" />, label: 'Pest Control' }
+    ],
+    auto: [
+      { id: 'car_repair', icon: <Car className="w-8 h-8" />, label: 'Car Repair' }
+    ]
+  };
+
+  const currentServices = servicesByDomain[selectedDomain] || [];
+
+  return (
+    <div className="min-h-screen bg-[#fafafc] flex font-sans">
+      
+      {/* 1. Left Sidebar Navigation */}
+      <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col">
+        <div className="h-16 flex items-center px-6 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            </div>
+            <span className="font-extrabold text-xl tracking-tight text-slate-900">FixNow</span>
+          </div>
+        </div>
+        
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-100 text-slate-900 font-bold text-sm">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+            Dashboard
+          </button>
+          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-semibold text-sm">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+            Past Bookings
+          </button>
+          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-semibold text-sm">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            Profile & Billing
+          </button>
+        </nav>
+        
+        <div className="p-4 border-t border-slate-100">
+          <div className="flex items-center gap-3 px-4 py-2">
+            <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white shadow-sm flex items-center justify-center font-bold text-slate-500 text-xs">A</div>
+            <div>
+              <p className="text-sm font-bold text-slate-800">Ananya R.</p>
+              <p className="text-xs font-medium text-slate-400">Basic Member</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* 2. Center Column: Main Content (Booking Flow) */}
+      <main className="flex-1 flex flex-col h-screen overflow-y-auto">
+        <header className="h-16 flex items-center justify-between px-8 bg-white/70 backdrop-blur-md sticky top-0 z-30 border-b border-slate-200/50 hidden md:flex">
+          <h1 className="text-xl font-bold text-slate-800 tracking-tight">Book a Service</h1>
+          <button className="bg-slate-100 text-slate-600 px-4 py-2 rounded-full text-sm font-semibold hover:bg-slate-200 transition-colors">
+            📍 Bangalore Central
+          </button>
+        </header>
+
+        <div className="p-6 md:p-10 max-w-4xl mx-auto w-full">
+          <div className="mb-10">
+            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">What do you need help with?</h2>
+            <p className="text-slate-500 font-medium">Select a category and service to instantly find a verified professional.</p>
+          </div>
+
+          <div className="space-y-8">
+            <section>
+              <label className="block text-sm font-bold text-slate-700 mb-3">Service Category</label>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {domains.map(d => (
+                  <button 
+                    key={d.id}
+                    onClick={() => {
+                      setSelectedDomain(d.id);
+                      setSelectedService(servicesByDomain[d.id][0].id);
+                    }}
+                    className={`px-5 py-3 rounded-2xl text-sm font-bold whitespace-nowrap transition-all shadow-sm ${selectedDomain === d.id ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <label className="block text-sm font-bold text-slate-700 mb-3">Specific Task</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {currentServices.map((s) => (
+                  <button 
+                    key={s.id}
+                    onClick={() => setSelectedService(s.id)}
+                    className={`flex flex-col items-center justify-center p-6 rounded-3xl border transition-all duration-300 ${selectedService === s.id ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-md ring-2 ring-indigo-600/20' : 'bg-white border-slate-100 text-slate-600 hover:shadow-md'}`}
+                  >
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${selectedService === s.id ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-500'}`}>
+                      {s.icon}
+                    </div>
+                    <span className="text-sm font-bold text-center leading-tight">{s.label}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {bookingStatus === 'IDLE' && (
+              <div className="pt-6">
+                <button 
+                  onClick={handleBookService}
+                  className="w-full md:w-auto px-10 bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-2xl font-bold shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                  Find Worker Instantly
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* 3. Right Column: Persistent Status Panel */}
+      <aside className="w-full md:w-96 bg-white border-l border-slate-200 flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.02)] z-40 relative">
+        <header className="h-16 flex items-center px-6 border-b border-slate-100 bg-white">
+          <h2 className="font-bold text-slate-800 tracking-tight">Active Request</h2>
+        </header>
+        
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-6 relative">
+          
+          {bookingStatus === 'IDLE' && (
+            <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 mb-4">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+              </div>
+              <p className="text-slate-500 font-medium text-sm max-w-[200px]">Select a service on the left to begin your request.</p>
+            </div>
+          )}
+
+          {bookingStatus === 'SEARCHING' && (
+            <div className="flex flex-col items-center justify-center h-full py-10 animate-in fade-in">
+              <div className="relative w-24 h-24 flex items-center justify-center mb-6">
+                <div className="absolute inset-0 border-4 border-indigo-100 rounded-full animate-ping"></div>
+                <div className="absolute inset-2 border-4 border-indigo-300 rounded-full animate-pulse"></div>
+                <div className="bg-indigo-600 text-white w-12 h-12 rounded-full flex items-center justify-center z-10 shadow-lg">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+              </div>
+              <h3 className="text-lg font-bold text-slate-800">Searching Nearby...</h3>
+              <p className="text-sm text-slate-500 text-center mt-2">Contacting top-rated cooperative workers within a 5km radius.</p>
+            </div>
+          )}
+
+          {bookingStatus === 'ACCEPTED' && (
+            <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-500">
+              <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm shadow-emerald-100/50">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center overflow-hidden">
+                      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Ramesh" className="w-10 h-10" alt="Worker" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-0.5">Assigned Professional</p>
+                      <h3 className="font-extrabold text-slate-800 leading-tight">Ramesh K.</h3>
+                      <p className="text-xs text-slate-500 font-medium">★ 4.9 • NCCT Certified</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+                  <p className="text-[10px] text-emerald-700 mb-1 uppercase tracking-widest font-bold text-center">Closure OTP</p>
+                  <div className="text-3xl font-mono font-bold tracking-[0.2em] text-center text-emerald-900">482910</div>
+                  <p className="text-[10px] text-center mt-1 text-emerald-600 font-medium">Share this ONLY when the job is done.</p>
+                </div>
+              </div>
+              
+              <button onClick={handleSimulateCompletion} className="w-full bg-slate-200 text-slate-600 py-3 rounded-xl text-sm font-bold opacity-60 hover:opacity-100 transition-opacity">
+                [Dev Mock] Simulate Completion
+              </button>
+              
+              <button onClick={handleSOS} className="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold text-sm border border-red-200 hover:bg-red-100 transition-colors">
+                SOS / Emergency Help
+              </button>
+            </div>
+          )}
+
+          {bookingStatus === 'COMPLETED' && (
+            <div className="space-y-6 animate-in fade-in">
+              <div className="text-center">
+                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 tracking-tight">Digital Invoice</h3>
+                <p className="text-sm text-slate-500 font-medium">Job completed successfully.</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <div className="space-y-3 mb-5">
+                  <div className="flex justify-between text-sm text-slate-600">
+                    <span className="font-medium">Base Cooperative Wage</span>
+                    <span className="font-mono font-medium text-slate-800">₹450.00</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-slate-600">
+                    <span className="font-medium">Hardware (OCR Verified)</span>
+                    <span className="font-mono font-medium text-slate-800">₹120.00</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-slate-600">
+                    <span className="font-medium">Federation Fee</span>
+                    <span className="font-mono font-medium text-slate-800">₹22.50</span>
+                  </div>
+                </div>
+                <div className="border-t border-slate-100 pt-4 flex justify-between items-center">
+                  <span className="font-bold text-slate-800 text-sm uppercase tracking-wide">Total Payable</span>
+                  <span className="font-mono font-bold text-xl text-slate-900">₹592.50</span>
+                </div>
+              </div>
+
+              <button 
+                onClick={handlePayment}
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                <span>Pay securely</span>
+              </button>
+            </div>
+          )}
+
+          {bookingStatus === 'FEEDBACK' && (
+            <div className="space-y-6 animate-in slide-in-from-bottom-4 fade-in text-center py-6">
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 tracking-tight">Payment Successful</h3>
+              <p className="text-xs text-slate-500 mb-6 font-medium">₹592.50 deposited to Cooperative Escrow</p>
+              
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 text-left">
+                <h4 className="font-bold text-slate-800 mb-3 text-center text-sm">Rate your professional</h4>
+                <div className="flex justify-center gap-1 mb-5">
+                  {[1,2,3,4,5].map(star => (
+                    <button 
+                      key={star} 
+                      onClick={() => setRating(star)}
+                      className={`text-3xl transition-colors ${rating >= star ? 'text-amber-400' : 'text-slate-200'}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+                <textarea 
+                  placeholder="Leave a review to build consumer trust..." 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium outline-none focus:border-slate-400 focus:bg-white resize-none h-24 mb-4 transition-all"
+                ></textarea>
+                <button onClick={() => { setBookingStatus('IDLE'); setRating(0); }} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-sm hover:bg-slate-800">
+                  Submit Feedback
+                </button>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </aside>
+
+      {/* SOS Modal remains centered absolutely */}
+      {sosActive && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl relative border border-slate-200">
+            <div className="bg-red-600 text-white p-6 text-center animate-[pulse_1s_ease-in-out_infinite]">
+              <h2 className="text-2xl font-black uppercase tracking-widest">SOS Triggered</h2>
+            </div>
+            <div className="p-6 text-center space-y-4">
+              <p className="text-slate-700 font-medium text-sm">Your live location has been shared with emergency services and the Federation Command Center.</p>
+              <button 
+                onClick={() => setSosActive(false)}
+                className="mt-4 w-full bg-white border border-slate-200 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-50 text-sm"
+              >
+                Cancel / False Alarm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
