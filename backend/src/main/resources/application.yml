@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: gig-backend
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://db.dqbuppagnagzwdrtyemp.supabase.co:5432/postgres}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:112131415161718191}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: UTC
+
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:SIH2026CooperativeGigPlatformSecretKeyForHS256JWTTokenGeneration}
+    expiry-ms: ${JWT_EXPIRY_MS:86400000}
+  otp:
+    expiry-seconds: ${OTP_EXPIRY_SECONDS:300}
+  dispatch:
+    timeout-seconds: ${DISPATCH_TIMEOUT_SECONDS:45}
+  exotel:
+    sid: ${EXOTEL_SID:your_exotel_sid}
+    token: ${EXOTEL_TOKEN:your_exotel_token}
+  bhashini:
+    audio-base: ${BHASHINI_AUDIO_BASE:https://placeholder.bhashini.gov.in/audio}
+  ai:
+    api-key: ${AI_API_KEY:your_ai_api_key}
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:3000}
+
+logging:
+  level:
+    com.sih.gig: DEBUG
+    org.springframework.security: WARN
+    org.flywaydb: INFO
