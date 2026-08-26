@@ -2,9 +2,11 @@ package com.sih.gig.controller;
 
 import com.sih.gig.entity.User;
 import com.sih.gig.entity.Worker;
+import com.sih.gig.dto.request.VerifyNcctRequest;
 import com.sih.gig.repository.UserRepository;
 import com.sih.gig.repository.WorkerRepository;
 import com.sih.gig.service.FileStorageService;
+import com.sih.gig.service.AiService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,6 +23,7 @@ public class UserController {
     private final UserRepository userRepository;
     private final WorkerRepository workerRepository;
     private final FileStorageService fileStorageService;
+    private final AiService aiService;
 
     @PostMapping("/complete-profile")
     public ResponseEntity<?> completeProfile(
@@ -49,7 +52,19 @@ public class UserController {
                 if (certificate != null && !certificate.isEmpty()) {
                     String certUrl = fileStorageService.storeFile(certificate);
                     worker.setCertificationUrl(certUrl);
-                    worker.setApprovalStatus("PENDING");
+                    
+                    // Trigger AI OCR Verification
+                    Map<String, Object> aiResult = aiService.verifyNcct(
+                        new VerifyNcctRequest(worker.getId(), certUrl)
+                    );
+                    
+                    if (Boolean.TRUE.equals(aiResult.get("verified"))) {
+                        worker.setNcctCertified(true);
+                        worker.setTier((String) aiResult.getOrDefault("recommended_tier", "SKILLED"));
+                        worker.setApprovalStatus("APPROVED");
+                    } else {
+                        worker.setApprovalStatus("PENDING");
+                    }
                     workerUpdated = true;
                 }
                 if (workerUpdated) {
@@ -61,3 +76,4 @@ public class UserController {
         return ResponseEntity.ok(Map.of("message", "Profile completed successfully", "user", user));
     }
 }
+

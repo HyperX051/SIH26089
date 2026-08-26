@@ -2,9 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Wrench, Zap, Hammer, Paintbrush, ThermometerSnowflake, Droplet, Tv, Sparkles, Bug, Car, MapPin, Loader2 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { api } from '@/lib/api';
 import { useStomp } from '@/hooks/useStomp';
 import { useAuthStore } from '@/store/useAuthStore';
+import UPIPayment from '@/components/UPIPayment';
+import WorkerBadge from '@/components/WorkerBadge';
+
+const DynamicMapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
+
 
 type BookingStatus = 'IDLE' | 'SEARCHING' | 'ACCEPTED' | 'COMPLETED' | 'FEEDBACK';
 
@@ -356,12 +362,28 @@ export default function CustomerApp() {
                       <MapPin className="w-4 h-4 text-purple-500" />
                       Your Location
                     </label>
+                    <div className="mb-3">
+                      <DynamicMapPicker 
+                        initialPosition={location ? { lat: location.latitude, lng: location.longitude } : null}
+                        onLocationSelect={async (lat, lng) => {
+                          setLocationLoading(true);
+                          let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                          try {
+                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+                            const data = await res.json();
+                            address = data.display_name || address;
+                          } catch {}
+                          setLocation({ latitude: lat, longitude: lng, address });
+                          setLocationLoading(false);
+                        }}
+                      />
+                    </div>
                     <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border text-sm font-medium transition-all
                       ${locationError ? 'border-red-200 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
                       {locationLoading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin text-slate-400 shrink-0" />
-                          <span className="text-slate-500">Detecting your location...</span>
+                          <span className="text-slate-500">Updating location...</span>
                         </>
                       ) : locationError ? (
                         <>
@@ -375,14 +397,14 @@ export default function CustomerApp() {
                           <MapPin className="w-4 h-4 text-purple-500 shrink-0" />
                           <span className="flex-1 truncate">{location.address}</span>
                           <button onClick={fetchLocation} className="text-xs font-bold text-purple-600 hover:text-purple-700 shrink-0">
-                            Refresh
+                            Auto Detect
                           </button>
                         </>
                       ) : (
                         <>
-                          <span className="flex-1 text-slate-500">Location not shared yet</span>
+                          <span className="flex-1 text-slate-500">Tap the map above to select your location</span>
                           <button onClick={fetchLocation} className="text-xs font-bold text-purple-600 hover:text-purple-700 shrink-0">
-                            Share Location
+                            Auto Detect
                           </button>
                         </>
                       )}
@@ -505,13 +527,13 @@ export default function CustomerApp() {
               <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm shadow-emerald-100/50">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center overflow-hidden">
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center overflow-hidden shrink-0">
                       <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Worker" className="w-10 h-10" alt="Worker" />
                     </div>
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-0.5">Assigned Professional</p>
                       <h3 className="font-extrabold text-slate-800 leading-tight">Worker Assigned</h3>
-                      <p className="text-xs text-slate-500 font-medium">NCCT Certified</p>
+                      <WorkerBadge ncctCertified={true} tier="SKILLED" rating={4.8} />
                     </div>
                   </div>
                 </div>
@@ -533,22 +555,18 @@ export default function CustomerApp() {
           {bookingStatus === 'COMPLETED' && (
             <div className="space-y-6 animate-in fade-in">
               <div className="text-center">
-                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 tracking-tight">Digital Invoice</h3>
-                <p className="text-sm text-slate-500 font-medium">Job completed successfully.</p>
+                <h3 className="text-xl font-bold text-slate-800 tracking-tight">Job Completed</h3>
+                <p className="text-sm text-slate-500 font-medium">Please settle the payment directly with the worker.</p>
               </div>
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                <p className="text-xs text-slate-500 text-center mb-4 font-medium">Final invoice will be generated from the backend after payment.</p>
-                <div className="border-t border-slate-100 pt-4 flex justify-between items-center">
-                  <span className="font-bold text-slate-800 text-sm uppercase tracking-wide">Total Payable</span>
-                  <span className="font-mono font-bold text-xl text-slate-900">Calculated by server</span>
-                </div>
-              </div>
-              <button onClick={handlePayment} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2">
-                <span>Pay securely</span>
-              </button>
+              
+              <UPIPayment 
+                amount={450.00} // This should ideally come from backend state
+                workerName="Assigned Professional"
+                onPaymentSuccess={handlePayment}
+              />
             </div>
           )}
 
