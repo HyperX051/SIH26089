@@ -153,7 +153,7 @@ export default function Home() {
       <header className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-zinc-200">
         <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => {setSelectedService(null); setBookingStatus('IDLE'); setAiAssessment(null);}}>
-            <div className="w-8 h-8 bg-zinc-900 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center shadow-sm">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
             </div>
             <span className="font-extrabold text-xl tracking-tight text-zinc-900 uppercase">FixNow</span>
@@ -165,7 +165,7 @@ export default function Home() {
                 <Link href="/worker/login" className="hidden md:block text-sm font-semibold text-zinc-500 hover:text-zinc-900 transition-colors">
                   Join as Professional
                 </Link>
-                <Link href="/customer/login" className="flex items-center justify-center h-10 px-6 bg-zinc-900 text-white font-semibold text-sm hover:bg-zinc-800 transition-colors">
+                <Link href="/customer/login" className="flex items-center justify-center h-10 px-6 bg-zinc-900 text-white font-semibold text-sm rounded-full hover:bg-zinc-800 transition-colors shadow-sm">
                   Sign In
                 </Link>
               </>
@@ -216,7 +216,7 @@ export default function Home() {
                     }
                     setSelectedService(service.id);
                   }}
-                  className="group p-6 border border-zinc-200 hover:border-zinc-900 bg-zinc-50/50 hover:bg-white transition-all flex flex-col items-center text-center cursor-pointer"
+                  className="group p-6 border-2 border-zinc-200 rounded-2xl hover:border-zinc-900 bg-zinc-50/50 hover:bg-white transition-all flex flex-col items-center text-center cursor-pointer shadow-sm hover:shadow-md"
                 >
                   <div className="mb-3 text-zinc-400 group-hover:text-zinc-900 transition-colors">
                     {service.icon}
@@ -249,7 +249,7 @@ export default function Home() {
 
         {/* State: Booking Form (IDLE with Service Selected) */}
         {selectedService && bookingStatus === 'IDLE' && (
-          <div className="max-w-2xl mx-auto border border-zinc-200 bg-white p-8 md:p-10 animate-in slide-in-from-bottom-4">
+          <div className="max-w-2xl mx-auto border-2 border-zinc-200 rounded-3xl bg-white p-8 md:p-10 animate-in slide-in-from-bottom-4 shadow-xl">
             <button onClick={() => { setSelectedService(null); setAiAssessment(null); }} className="text-xs font-bold text-zinc-500 hover:text-zinc-900 mb-8 uppercase tracking-wider flex items-center gap-2">
               &larr; Back to Services
             </button>
@@ -268,12 +268,12 @@ export default function Home() {
                     onChange={(e) => setProblemDescription(e.target.value)}
                     placeholder="Describe the issue in detail..."
                     rows={4}
-                    className="w-full bg-zinc-50 border border-zinc-200 p-4 text-zinc-900 text-sm focus:outline-none focus:border-zinc-900 focus:bg-white transition-all resize-none"
+                    className="w-full bg-zinc-50 border-2 border-zinc-200 rounded-xl p-4 text-zinc-900 text-sm focus:outline-none focus:border-zinc-900 focus:bg-white transition-all resize-none shadow-sm"
                   />
                   <button 
                     onClick={handleAiAssess}
                     disabled={!problemDescription.trim() || aiAssessing}
-                    className="absolute bottom-3 right-3 flex items-center gap-2 bg-zinc-900 text-white px-3 py-1.5 text-xs font-bold hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                    className="absolute bottom-3 right-3 flex items-center gap-2 bg-zinc-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-zinc-800 disabled:opacity-50 transition-colors shadow-sm"
                   >
                     {aiAssessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <BrainCircuit className="w-3 h-3" />}
                     AI Assess
@@ -282,7 +282,7 @@ export default function Home() {
                 
                 {/* AI Assessment Result */}
                 {aiAssessment && (
-                  <div className="mt-4 p-4 border border-zinc-200 bg-zinc-50 animate-in fade-in">
+                  <div className="mt-4 p-4 border-2 border-zinc-200 rounded-xl bg-zinc-50 animate-in fade-in shadow-sm">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-3 flex items-center gap-2">
                       <BrainCircuit className="w-4 h-4 text-zinc-900" /> AI Assessment
                     </h4>
@@ -308,7 +308,7 @@ export default function Home() {
                 <label className="block text-xs font-bold text-zinc-900 mb-3 uppercase tracking-wider flex items-center gap-2">
                   Service Location
                 </label>
-                <div className="border border-zinc-200 mb-3 h-[250px] bg-zinc-50">
+                <div className="border-2 border-zinc-200 rounded-xl overflow-hidden mb-3 h-[250px] bg-zinc-50 shadow-sm">
                   <DynamicMapPicker 
                     initialPosition={location ? { lat: location.latitude, lng: location.longitude } : null}
                     onLocationSelect={async (lat, lng) => {
@@ -325,7 +325,7 @@ export default function Home() {
                   />
                 </div>
                 
-                <div className="flex items-center justify-between border border-zinc-200 p-4 bg-zinc-50 text-sm">
+                <div className="flex items-center justify-between border-2 border-zinc-200 rounded-xl p-4 bg-zinc-50 text-sm shadow-sm">
                   <div className="flex items-center gap-3 truncate">
                     {locationLoading ? (
                       <Loader2 className="w-4 h-4 animate-spin text-zinc-400 shrink-0" />
@@ -344,11 +344,11 @@ export default function Home() {
                 </div>
               </div>
 
-              <button
-                onClick={handleBookService}
-                disabled={!problemDescription.trim() || locationLoading || !location}
-                className="w-full bg-zinc-900 hover:bg-black disabled:bg-zinc-300 disabled:text-zinc-500 text-white py-4 font-bold text-sm tracking-wide uppercase transition-colors"
-              >
+                <button
+                  onClick={handleBookService}
+                  disabled={!problemDescription.trim() || locationLoading || !location}
+                  className="w-full bg-zinc-900 hover:bg-black disabled:bg-zinc-300 disabled:text-zinc-500 text-white py-4 font-bold text-sm tracking-wide uppercase transition-colors rounded-xl shadow-md"
+                >
                 Broadcast Job
               </button>
             </div>

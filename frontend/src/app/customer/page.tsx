@@ -61,14 +61,14 @@ export default function CustomerDashboard() {
           <nav className="flex-1 p-6 space-y-2 overflow-y-auto">
             <button 
               onClick={() => setActiveTab('bookings')}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'bookings' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors rounded-xl ${activeTab === 'bookings' ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900'}`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
               My Bookings
             </button>
             <button 
               onClick={() => setActiveTab('profile')}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'profile' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors rounded-xl ${activeTab === 'profile' ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900'}`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
               Profile
@@ -84,19 +84,19 @@ export default function CustomerDashboard() {
                 <h2 className="text-2xl font-extrabold text-zinc-900 mb-8">Past Bookings</h2>
                 <div className="space-y-4">
                   {pastBookings.length === 0 ? (
-                    <div className="text-center py-16 border border-zinc-200 bg-zinc-50">
+                    <div className="text-center py-16 border-2 border-zinc-200 rounded-3xl bg-zinc-50 shadow-sm">
                       <p className="text-zinc-500 font-medium text-sm">No past bookings found.</p>
-                      <Link href="/" className="mt-4 inline-block bg-zinc-900 text-white font-bold text-xs uppercase tracking-wider px-6 py-3 hover:bg-black transition-colors">Book a Service</Link>
+                      <Link href="/" className="mt-4 inline-block bg-zinc-900 text-white font-bold text-xs uppercase tracking-wider px-6 py-3 rounded-full hover:bg-black transition-colors shadow-sm">Book a Service</Link>
                     </div>
                   ) : (
                     pastBookings.map(b => (
-                      <div key={b.id} className="border border-zinc-200 bg-white p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-zinc-900 transition-colors">
+                      <div key={b.id} className="border-2 border-zinc-200 rounded-2xl bg-white p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-zinc-900 transition-colors shadow-sm hover:shadow-md">
                         <div>
                           <p className="font-bold text-zinc-900 text-lg">{b.serviceType}</p>
                           <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider mt-1">{new Date(b.date).toLocaleString()}</p>
                         </div>
                         <div className="flex items-center gap-6">
-                          <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${b.status === 'COMPLETED' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 border border-zinc-200'}`}>
+                          <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md ${b.status === 'COMPLETED' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 border border-zinc-200'}`}>
                             {b.status}
                           </span>
                           <span className="font-extrabold text-zinc-900 text-xl">₹{b.amount}</span>
@@ -111,9 +111,9 @@ export default function CustomerDashboard() {
             {activeTab === 'profile' && (
               <div>
                 <h2 className="text-2xl font-extrabold text-zinc-900 mb-8">My Profile</h2>
-                <div className="border border-zinc-200 bg-white p-8">
+                <div className="border-2 border-zinc-200 rounded-3xl bg-white p-8 shadow-sm">
                   <div className="flex items-center gap-6 mb-8 border-b border-zinc-100 pb-8">
-                    <div className="w-20 h-20 bg-zinc-100 flex items-center justify-center text-3xl font-extrabold text-zinc-900">
+                    <div className="w-20 h-20 bg-zinc-100 rounded-2xl flex items-center justify-center text-3xl font-extrabold text-zinc-900 shadow-inner">
                       {user?.name ? user.name[0].toUpperCase() : '?'}
                     </div>
                     <div>
@@ -124,7 +124,7 @@ export default function CustomerDashboard() {
                   
                   <button 
                     onClick={() => { logout(); router.push('/'); }}
-                    className="border border-red-200 bg-white hover:bg-red-50 text-red-600 px-6 py-3 font-bold text-xs uppercase tracking-wider transition-colors flex items-center gap-2"
+                    className="border-2 border-red-200 bg-white hover:bg-red-50 text-red-600 px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors flex items-center gap-2 shadow-sm"
                   >
                     Sign Out
                   </button>
