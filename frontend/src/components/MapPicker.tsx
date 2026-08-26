@@ -40,10 +40,10 @@ export default function MapPicker({ initialPosition, onLocationSelect }: MapPick
     setIsMounted(true);
   }, []);
 
-  if (!isMounted) return <div className="h-48 w-full bg-slate-100 rounded-2xl animate-pulse flex items-center justify-center">Loading Map...</div>;
+  if (!isMounted) return <div className="h-full w-full bg-muted animate-pulse flex items-center justify-center font-bold text-xs text-muted-foreground uppercase tracking-wider">Loading Map...</div>;
 
   return (
-    <div className="h-48 w-full rounded-2xl overflow-hidden border border-slate-200 shadow-sm relative z-0">
+    <div className="h-full w-full relative z-0">
       <MapContainer 
         center={initialPosition || defaultPos} 
         zoom={13} 

@@ -31,37 +31,37 @@ export default function WorkerLogin() {
         router.push('/worker');
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'An error occurred. Please try again.');
+      setError(err.response?.data?.error?.message || err.response?.data?.message || 'An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-6 font-sans">
-      <Link href="/" className="absolute top-8 left-8 flex items-center gap-2 cursor-pointer text-white">
-        <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-          <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+    <div className="min-h-screen bg-background flex items-center justify-center p-6 font-sans">
+      <Link href="/" className="absolute top-8 left-8 flex items-center gap-2 cursor-pointer text-foreground">
+        <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shadow-sm">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
         </div>
         <span className="font-extrabold text-xl tracking-tight uppercase">FixNow</span>
       </Link>
 
-      <div className="w-full max-w-md bg-zinc-900 border-2 border-zinc-700 rounded-3xl p-8 shadow-2xl">
+      <div className="w-full max-w-md bg-card border border-border rounded-3xl p-8 shadow-2xl">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-white mb-2">Professional Portal</h1>
-          <p className="text-zinc-400 font-medium text-sm">Join the elite network</p>
+          <h1 className="text-3xl font-extrabold text-foreground mb-2">Professional Portal</h1>
+          <p className="text-muted-foreground font-medium text-sm">Join the elite network</p>
         </div>
 
-        <div className="flex bg-black p-1 rounded-xl mb-8 border border-zinc-800">
+        <div className="flex bg-muted p-1 rounded-xl mb-8 border border-border">
           <button 
             onClick={() => setMode('LOGIN')}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'LOGIN' ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700' : 'text-zinc-500 hover:text-white'}`}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'LOGIN' ? 'bg-card text-foreground shadow-sm border border-border' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Sign In
           </button>
           <button 
             onClick={() => setMode('REGISTER')}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'REGISTER' ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700' : 'text-zinc-500 hover:text-white'}`}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'REGISTER' ? 'bg-card text-foreground shadow-sm border border-border' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Register
           </button>
@@ -75,24 +75,24 @@ export default function WorkerLogin() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-xs font-bold text-zinc-300 mb-2 uppercase tracking-wider">Mobile Number</label>
+            <label className="block text-xs font-bold text-foreground mb-2 uppercase tracking-wider">Mobile Number</label>
             <input 
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full bg-black border-2 border-zinc-700 rounded-xl p-4 text-white font-mono text-lg focus:outline-none focus:border-white focus:bg-zinc-800 transition-all shadow-sm"
+              className="w-full bg-background border border-border rounded-xl p-4 text-foreground font-mono text-lg focus:outline-none focus:border-primary focus:bg-card transition-all shadow-sm"
               placeholder="+91 98765 43210"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-zinc-300 mb-2 uppercase tracking-wider">Password</label>
+            <label className="block text-xs font-bold text-foreground mb-2 uppercase tracking-wider">Password</label>
             <input 
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-black border-2 border-zinc-700 rounded-xl p-4 text-white font-mono text-lg focus:outline-none focus:border-white focus:bg-zinc-800 transition-all shadow-sm"
+              className="w-full bg-background border border-border rounded-xl p-4 text-foreground font-mono text-lg focus:outline-none focus:border-primary focus:bg-card transition-all shadow-sm"
               placeholder="••••••••"
               required
             />
@@ -101,7 +101,7 @@ export default function WorkerLogin() {
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bg-white hover:bg-zinc-200 text-black font-bold py-4 rounded-xl transition-colors uppercase tracking-wider shadow-md disabled:bg-zinc-600 disabled:text-zinc-400"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 rounded-xl transition-colors uppercase tracking-wider shadow-md disabled:bg-muted disabled:text-muted-foreground"
           >
             {loading ? 'Processing...' : (mode === 'LOGIN' ? 'Sign In' : 'Register')}
           </button>

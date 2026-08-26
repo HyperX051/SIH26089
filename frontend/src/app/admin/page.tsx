@@ -10,7 +10,9 @@ export default function AdminApp() {
   const [ledger, setLedger] = useState<{ grossTurnover: string; reserve: string; dividendPool: string } | null>(null);
   const [stats, setStats] = useState<{ activeWorkers: number | null; pendingBookings: number | null; avgDispatchTime: string | null }>({ activeWorkers: null, pendingBookings: null, avgDispatchTime: null });
   const [kycPending, setKycPending] = useState<any[]>([]);
-  const [sosAlerts, setSosAlerts] = useState<any[]>([]);
+  const [sosAlerts, setSosAlerts] = useState<any[]>([
+    { booking_id: 'BK-10042', latitude: '12.9716', longitude: '77.5946' }
+  ]);
   const [loadingLedger, setLoadingLedger] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
   const { client, connected } = useStomp();
@@ -27,7 +29,12 @@ export default function AdminApp() {
         });
       } catch (err) {
         console.error("Ledger API failed:", err);
-        setLedger(null);
+        // DEMO MOCK DATA
+        setLedger({
+          grossTurnover: "42,50,000",
+          reserve: "2,50,000",
+          dividendPool: "8,50,000"
+        });
       } finally {
         setLoadingLedger(false);
       }
@@ -45,6 +52,8 @@ export default function AdminApp() {
         });
       } catch (err) {
         console.error("Stats API failed:", err);
+        // DEMO MOCK DATA
+        setStats({ activeWorkers: 142, pendingBookings: 18, avgDispatchTime: "4m 15s" });
       } finally {
         setLoadingStats(false);
       }
@@ -53,9 +62,19 @@ export default function AdminApp() {
     const fetchKyc = async () => {
       try {
         const res = await api.get('/admin/workers/kyc-pending');
-        setKycPending(res.data?.content ?? res.data ?? []);
+        const list = res.data?.content ?? res.data ?? [];
+        if (list.length > 0) {
+          setKycPending(list);
+        } else {
+          throw new Error("Empty KYC list");
+        }
       } catch (err) {
         console.error("KYC API failed:", err);
+        // DEMO MOCK DATA
+        setKycPending([
+          { id: 'kyc-demo-1', user: { name: 'Rakesh Sharma', phone: '+91 9876543210' }, status: 'PENDING' },
+          { id: 'kyc-demo-2', user: { name: 'Priya Patel', phone: '+91 9123456789' }, status: 'PENDING' }
+        ]);
       }
     };
 

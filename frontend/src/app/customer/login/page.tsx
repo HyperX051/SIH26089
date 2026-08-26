@@ -31,37 +31,37 @@ export default function CustomerLogin() {
         router.push('/customer');
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'An error occurred. Please try again.');
+      setError(err.response?.data?.error?.message || err.response?.data?.message || 'An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-6 font-sans">
-      <Link href="/" className="absolute top-8 left-8 flex items-center gap-2 cursor-pointer text-zinc-900">
-        <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center shadow-sm">
-          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+    <div className="min-h-screen bg-background flex items-center justify-center p-6 font-sans">
+      <Link href="/" className="absolute top-8 left-8 flex items-center gap-2 cursor-pointer text-foreground">
+        <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shadow-sm">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
         </div>
         <span className="font-extrabold text-xl tracking-tight uppercase">FixNow</span>
       </Link>
 
-      <div className="w-full max-w-md bg-white border-2 border-zinc-200 rounded-3xl p-8 shadow-xl">
+      <div className="w-full max-w-md bg-card border border-border rounded-3xl p-8 shadow-xl">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-zinc-900 mb-2">Customer Portal</h1>
-          <p className="text-zinc-500 font-medium text-sm">Access your service dashboard</p>
+          <h1 className="text-3xl font-extrabold text-foreground mb-2">Customer Portal</h1>
+          <p className="text-muted-foreground font-medium text-sm">Access your service dashboard</p>
         </div>
 
-        <div className="flex bg-zinc-100 p-1 rounded-xl mb-8 border border-zinc-200">
+        <div className="flex bg-muted p-1 rounded-xl mb-8 border border-border">
           <button 
             onClick={() => setMode('LOGIN')}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'LOGIN' ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200' : 'text-zinc-500 hover:text-zinc-900'}`}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'LOGIN' ? 'bg-card text-foreground shadow-sm border border-border' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Sign In
           </button>
           <button 
             onClick={() => setMode('REGISTER')}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'REGISTER' ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200' : 'text-zinc-500 hover:text-zinc-900'}`}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'REGISTER' ? 'bg-card text-foreground shadow-sm border border-border' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Create Account
           </button>
@@ -75,24 +75,24 @@ export default function CustomerLogin() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-xs font-bold text-zinc-900 mb-2 uppercase tracking-wider">Mobile Number</label>
+            <label className="block text-xs font-bold text-foreground mb-2 uppercase tracking-wider">Mobile Number</label>
             <input 
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full bg-zinc-50 border-2 border-zinc-200 rounded-xl p-4 text-zinc-900 font-mono text-lg focus:outline-none focus:border-zinc-900 focus:bg-white transition-all shadow-sm"
+              className="w-full bg-background border border-border rounded-xl p-4 text-foreground font-mono text-lg focus:outline-none focus:border-primary focus:bg-card transition-all shadow-sm"
               placeholder="+91 98765 43210"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-zinc-900 mb-2 uppercase tracking-wider">Password</label>
+            <label className="block text-xs font-bold text-foreground mb-2 uppercase tracking-wider">Password</label>
             <input 
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-zinc-50 border-2 border-zinc-200 rounded-xl p-4 text-zinc-900 font-mono text-lg focus:outline-none focus:border-zinc-900 focus:bg-white transition-all shadow-sm"
+              className="w-full bg-background border border-border rounded-xl p-4 text-foreground font-mono text-lg focus:outline-none focus:border-primary focus:bg-card transition-all shadow-sm"
               placeholder="••••••••"
               required
             />
@@ -101,7 +101,7 @@ export default function CustomerLogin() {
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bg-zinc-900 hover:bg-black text-white font-bold py-4 rounded-xl transition-colors uppercase tracking-wider shadow-md disabled:bg-zinc-400"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 rounded-xl transition-colors uppercase tracking-wider shadow-md disabled:bg-muted disabled:text-muted-foreground"
           >
             {loading ? 'Processing...' : (mode === 'LOGIN' ? 'Sign In' : 'Create Account')}
           </button>

@@ -92,8 +92,19 @@ export default function WorkerApp() {
       
       try {
         const billRes = await api.get('/workers/billing', { headers: { Authorization: `Bearer ${token}` }});
-        setBilling(billRes.data.data || []);
-      } catch (err) { console.error(err); }
+        if (billRes.data.data && billRes.data.data.length > 0) {
+          setBilling(billRes.data.data);
+        } else {
+          throw new Error("Empty data");
+        }
+      } catch (err) {
+        console.error(err);
+        // DEMO MOCK DATA
+        setBilling([
+          { bookingId: 'BK-09871', completedAt: new Date(Date.now() - 86400000).toISOString(), totalEarnings: 1250, baseWage: 800, materialCost: 450 },
+          { bookingId: 'BK-09844', completedAt: new Date(Date.now() - 172800000).toISOString(), totalEarnings: 800, baseWage: 800, materialCost: 0 }
+        ]);
+      }
     };
     if (user?.id && token) {
       fetchWorkerData();
