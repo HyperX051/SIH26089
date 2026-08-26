@@ -21,3 +21,16 @@ api.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
+
+// INTERCEPTOR: Handle Network Errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (!error.response) {
+      // Network error (backend is down, CORS, etc.)
+      console.error("Network error or Backend is unreachable:", error);
+      error.message = "Backend is unreachable or network error occurred. Please check your connection.";
+    }
+    return Promise.reject(error);
+  }
+);

@@ -11,9 +11,9 @@ export default function WorkerLogin() {
   
   const [phone, setPhone] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [devOtp, setDevOtp] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
-  const [isRegistering, setIsRegistering] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -22,8 +22,11 @@ export default function WorkerLogin() {
     setError("");
     setLoading(true);
     try {
-      const response = await api.post('/auth/send-otp', { phone, role: 'WORKER' });
-      setSessionId(response.data.session_id);
+      const response = await api.post('/auth/send-otp', { phone: phone.startsWith('+91') ? phone : `+91${phone}`, role: 'WORKER' });
+      setSessionId(response.data.data.session_id);
+      if (response.data.data.dev_otp) {
+        setDevOtp(response.data.data.dev_otp);
+      }
       setOtpSent(true);
     } catch (err: any) {
       console.error(err);
@@ -38,8 +41,9 @@ export default function WorkerLogin() {
     setError("");
     setLoading(true);
     try {
-      const response = await api.post('/auth/verify-otp', { phone, otp, session_id: sessionId });
-      setAuth(response.data.token, response.data.user);
+      const response = await api.post('/auth/verify-otp', { phone: phone.startsWith('+91') ? phone : `+91${phone}`, otp, session_id: sessionId });
+      const { token, user } = response.data.data;
+      setAuth(token, user);
       router.push("/worker");
     } catch (err: any) {
       console.error(err);
@@ -49,12 +53,6 @@ export default function WorkerLogin() {
     }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert("Simulation: Registration sent to local Cooperative Society for manual verification.");
-    setIsRegistering(false);
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900 p-6 relative overflow-hidden">
       {/* Background decoration */}
@@ -62,31 +60,6 @@ export default function WorkerLogin() {
       <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-blue-500/20 blur-[120px] pointer-events-none"></div>
 
       <div className="bg-slate-800/60 backdrop-blur-2xl p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700 z-10">
-        
-        {isRegistering ? (
-          <div>
-            <div className="mb-6 text-center">
-              <h1 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500 mb-2">Worker Registration</h1>
-              <p className="text-slate-400 text-sm">Join the Cooperative Society</p>
-            </div>
-            <form onSubmit={handleRegister} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Aadhaar Number</label>
-                <input type="text" required className="w-full px-4 py-3 rounded-lg border border-slate-600 bg-slate-900/50 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-slate-600" placeholder="0000 0000 0000" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">NCCT Certificate ID</label>
-                <input type="text" required className="w-full px-4 py-3 rounded-lg border border-slate-600 bg-slate-900/50 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-slate-600" placeholder="NCCT-2026-XXXX" />
-              </div>
-              <button type="submit" className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-semibold py-3 rounded-lg shadow-lg transition-all mt-2">
-                Submit for Verification
-              </button>
-              <button type="button" onClick={() => setIsRegistering(false)} className="w-full text-slate-400 text-sm hover:text-white transition-colors mt-2">
-                Back to Login
-              </button>
-            </form>
-          </div>
-        ) : (
           <div>
             <div className="mb-8 text-center">
               <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 mb-2">Worker Portal</h1>
@@ -118,6 +91,14 @@ export default function WorkerLogin() {
             ) : (
               <form onSubmit={handleVerify} className="space-y-4">
                 {error && <div className="text-red-400 text-sm font-bold text-center">{error}</div>}
+                
+                {devOtp && (
+                  <div className="mb-4 p-4 rounded-xl bg-slate-900/50 border border-green-500/30 text-center">
+                    <p className="text-sm text-green-400 font-bold mb-1">DEV MODE OTP</p>
+                    <p className="text-2xl font-mono text-white tracking-[0.5em]">{devOtp}</p>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">Enter Verification Code</label>
                   <input
@@ -147,17 +128,7 @@ export default function WorkerLogin() {
               </form>
             )}
 
-            <div className="mt-8 pt-6 border-t border-slate-700 text-center">
-              <p className="text-slate-400 text-sm">Not registered with a Cooperative yet?</p>
-              <button 
-                onClick={() => setIsRegistering(true)}
-                className="mt-2 text-green-400 hover:text-green-300 font-semibold text-sm transition-colors"
-              >
-                Register as Service Provider &rarr;
-              </button>
-            </div>
           </div>
-        )}
       </div>
     </div>
   );

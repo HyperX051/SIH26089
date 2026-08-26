@@ -12,6 +12,7 @@ export default function CustomerLogin() {
   
   const [phone, setPhone] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [devOtp, setDevOtp] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -29,11 +30,14 @@ export default function CustomerLogin() {
     setLoading(true);
     try {
       const response = await api.post('/auth/send-otp', {
-        phone: phone,
+        phone: phone.startsWith('+91') ? phone : `+91${phone}`,
         role: 'CUSTOMER'
       });
       
-      setSessionId(response.data.session_id);
+      setSessionId(response.data.data.session_id);
+      if (response.data.data.dev_otp) {
+        setDevOtp(response.data.data.dev_otp);
+      }
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.message || "Failed to connect to authentication server.");
@@ -54,13 +58,14 @@ export default function CustomerLogin() {
     setLoading(true);
     try {
       const response = await api.post('/auth/verify-otp', {
-        phone: phone,
+        phone: phone.startsWith('+91') ? phone : `+91${phone}`,
         otp: otp,
         session_id: sessionId
       });
       
       // Save to Zustand global store
-      setAuth(response.data.token, response.data.user);
+      const { token, user } = response.data.data;
+      setAuth(token, user);
       router.push('/customer');
       
     } catch (err: any) {
@@ -146,6 +151,12 @@ export default function CustomerLogin() {
             </form>
           ) : (
             <form className="space-y-5" onSubmit={handleVerifyOtp}>
+              {devOtp && (
+                <div className="mb-4 p-4 rounded-xl bg-blue-50 border border-blue-100 text-center">
+                  <p className="text-sm text-blue-600 font-bold mb-1">DEV MODE OTP</p>
+                  <p className="text-2xl font-mono text-blue-900 tracking-[0.5em]">{devOtp}</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">6-Digit OTP</label>
                 <input 

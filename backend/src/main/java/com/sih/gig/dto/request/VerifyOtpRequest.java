@@ -1,5 +1,6 @@
 package com.sih.gig.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
@@ -13,5 +14,6 @@ public class VerifyOtpRequest {
     private String otp;
 
     @NotBlank(message = "Session ID is required")
+    @JsonProperty("session_id")
     private String sessionId;
 }

@@ -16,10 +16,8 @@ export default function Home() {
               <span className="font-bold text-xl tracking-tight text-slate-900">FixNow</span>
             </div>
             
-            {/* Location Selector */}
-            <button className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-full transition-colors">
-              <span className="text-lg">📍</span> Bangalore, IN <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path></svg>
-            </button>
+
+
           </div>
 
           <div className="flex items-center gap-3">

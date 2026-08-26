@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -26,5 +27,11 @@ public class AuthController {
     @PostMapping("/verify-otp")
     public ResponseEntity<ApiResponse<?>> verifyOtp(@Valid @RequestBody VerifyOtpRequest req) {
         return ResponseEntity.ok(ApiResponse.ok(authService.verifyOtp(req)));
+    }
+
+    /** POST /api/v1/auth/admin-login */
+    @PostMapping("/admin-login")
+    public ResponseEntity<ApiResponse<?>> adminLogin(@RequestBody Map<String, String> req) {
+        return ResponseEntity.ok(ApiResponse.ok(authService.adminLogin(req.get("email"), req.get("password"))));
     }
 }

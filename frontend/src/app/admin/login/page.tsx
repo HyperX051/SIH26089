@@ -21,7 +21,8 @@ export default function AdminLogin() {
     
     try {
       const response = await api.post('/auth/admin-login', { email, password });
-      setAuth(response.data.token, response.data.user);
+      const { token, user } = response.data.data;
+      setAuth(token, user);
       router.push("/admin");
     } catch (err: any) {
       console.error(err);

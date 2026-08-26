@@ -25,6 +25,12 @@ public class User {
     @Column(length = 150)
     private String name;
 
+    @Column(unique = true, length = 100)
+    private String email;
+
+    @Column(length = 255)
+    private String password;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
