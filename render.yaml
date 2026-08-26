@@ -1,17 +1,4 @@
 services:
-  # Frontend Service (Next.js)
-  - type: web
-    name: frontend-service
-    env: node
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    startCommand: npm run start
-    envVars:
-      - key: NEXT_PUBLIC_API_BASE_URL
-        value: https://backend-service.onrender.com/api/v1 # Placeholder URL, Render allows internal networking, or you can use public URL.
-      - key: NEXT_PUBLIC_WS_URL
-        value: wss://backend-service.onrender.com
-
   # Backend Service (Java Spring Boot)
   - type: web
     name: backend-service
