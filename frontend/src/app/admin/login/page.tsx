@@ -12,7 +12,7 @@ export default function AdminLogin() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const login = useAuthStore(state => state.login);
+  const setAuth = useAuthStore(state => state.setAuth);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +21,7 @@ export default function AdminLogin() {
 
     try {
       const res = await api.post('/auth/admin-login', { email, password });
-      login(res.data.data.token, res.data.data.user);
+      setAuth(res.data.data.token, res.data.data.user);
       router.push('/admin');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid admin credentials.');

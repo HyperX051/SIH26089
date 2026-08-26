@@ -13,7 +13,7 @@ export default function WorkerLogin() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const login = useAuthStore(state => state.login);
+  const setAuth = useAuthStore(state => state.setAuth);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,11 +23,11 @@ export default function WorkerLogin() {
     try {
       if (mode === 'REGISTER') {
         const res = await api.post('/auth/register', { phone, password, role: 'WORKER' });
-        login(res.data.data.token, res.data.data.user);
+        setAuth(res.data.data.token, res.data.data.user);
         router.push('/worker');
       } else {
         const res = await api.post('/auth/login', { phone, password });
-        login(res.data.data.token, res.data.data.user);
+        setAuth(res.data.data.token, res.data.data.user);
         router.push('/worker');
       }
     } catch (err: any) {
