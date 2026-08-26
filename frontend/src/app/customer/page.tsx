@@ -58,10 +58,6 @@ export default function CustomerApp() {
     );
   }, []);
 
-      { timeout: 10000 }
-    );
-  }, []);
-
   useEffect(() => {
     if (client && connected && bookingId) {
       const sub = client.subscribe(`/topic/booking/${bookingId}`, (message) => {
