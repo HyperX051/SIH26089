@@ -8,7 +8,7 @@ import Link from 'next/link';
 
 export default function CustomerDashboard() {
   const router = useRouter();
-  const { user, token, clearAuth } = useAuthStore();
+  const { user, token, logout } = useAuthStore();
   
   const [activeTab, setActiveTab] = useState<'bookings' | 'profile'>('bookings');
   const [pastBookings, setPastBookings] = useState<any[]>([]);
@@ -36,70 +36,70 @@ export default function CustomerDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDF2F8] flex flex-col font-sans">
+    <div className="min-h-screen bg-white flex flex-col font-sans text-zinc-900">
       {/* Header */}
-      <header className="h-[72px] flex items-center justify-between px-8 bg-white border-b border-pink-100 shadow-sm shrink-0">
-        <Link href="/" className="flex items-center gap-2 cursor-pointer">
-          <div className="w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center shadow-md">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+      <header className="h-16 flex items-center justify-between px-8 bg-white border-b border-zinc-200 shrink-0">
+        <Link href="/" className="flex items-center gap-3 cursor-pointer">
+          <div className="w-8 h-8 bg-zinc-900 flex items-center justify-center">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
           </div>
-          <span className="font-black text-xl tracking-tight text-slate-900">FixNow</span>
+          <span className="font-extrabold text-xl tracking-tight text-zinc-900 uppercase">FixNow</span>
         </Link>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-pink-50 border border-pink-100 rounded-full px-4 py-1.5 shadow-sm">
-            <div className="w-8 h-8 rounded-full bg-pink-200 flex items-center justify-center text-pink-700 font-black text-xs">
-              {user?.name?.[0].toUpperCase() || 'U'}
+          <div className="flex items-center gap-3 border border-zinc-200 pl-1 pr-4 py-1 rounded-full">
+            <div className="w-7 h-7 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-900 font-bold text-xs uppercase">
+              {user?.name?.[0] || 'U'}
             </div>
-            <span className="font-bold text-sm text-slate-800">{user?.name || 'Customer'}</span>
+            <span className="font-semibold text-sm text-zinc-800">{user?.name || 'Customer'}</span>
           </div>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-64 bg-white border-r border-pink-100 hidden md:flex flex-col shrink-0">
+        <aside className="w-64 bg-zinc-50 border-r border-zinc-200 hidden md:flex flex-col shrink-0">
           <nav className="flex-1 p-6 space-y-2 overflow-y-auto">
             <button 
               onClick={() => setActiveTab('bookings')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm transition-all ${activeTab === 'bookings' ? 'bg-pink-50 text-pink-600 shadow-sm border border-pink-100' : 'text-slate-500 hover:bg-slate-50'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'bookings' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900'}`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
               My Bookings
             </button>
             <button 
               onClick={() => setActiveTab('profile')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm transition-all ${activeTab === 'profile' ? 'bg-pink-50 text-pink-600 shadow-sm border border-pink-100' : 'text-slate-500 hover:bg-slate-50'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'profile' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900'}`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
               Profile
             </button>
           </nav>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-10">
+        <main className="flex-1 overflow-y-auto p-6 md:p-10 bg-white">
           <div className="max-w-4xl mx-auto">
             {activeTab === 'bookings' && (
               <div>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-8">Past Bookings</h2>
+                <h2 className="text-2xl font-extrabold text-zinc-900 mb-8">Past Bookings</h2>
                 <div className="space-y-4">
                   {pastBookings.length === 0 ? (
-                    <div className="text-center py-16 bg-white rounded-3xl border border-pink-100 shadow-sm">
-                      <p className="text-slate-500 font-medium text-lg">No past bookings found.</p>
-                      <Link href="/" className="mt-4 inline-block bg-pink-50 text-pink-600 font-bold px-6 py-2 rounded-xl">Book a Service</Link>
+                    <div className="text-center py-16 border border-zinc-200 bg-zinc-50">
+                      <p className="text-zinc-500 font-medium text-sm">No past bookings found.</p>
+                      <Link href="/" className="mt-4 inline-block bg-zinc-900 text-white font-bold text-xs uppercase tracking-wider px-6 py-3 hover:bg-black transition-colors">Book a Service</Link>
                     </div>
                   ) : (
                     pastBookings.map(b => (
-                      <div key={b.id} className="bg-white rounded-3xl border border-pink-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow">
+                      <div key={b.id} className="border border-zinc-200 bg-white p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-zinc-900 transition-colors">
                         <div>
-                          <p className="font-black text-slate-800 text-lg">{b.serviceType}</p>
-                          <p className="text-slate-500 text-sm font-medium">{new Date(b.date).toLocaleString()}</p>
+                          <p className="font-bold text-zinc-900 text-lg">{b.serviceType}</p>
+                          <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider mt-1">{new Date(b.date).toLocaleString()}</p>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <span className={`px-4 py-1.5 rounded-full text-xs font-black tracking-wide ${b.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                        <div className="flex items-center gap-6">
+                          <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${b.status === 'COMPLETED' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 border border-zinc-200'}`}>
                             {b.status}
                           </span>
-                          <span className="font-black text-slate-900 text-lg">₹{b.amount}</span>
+                          <span className="font-extrabold text-zinc-900 text-xl">₹{b.amount}</span>
                         </div>
                       </div>
                     ))
@@ -110,21 +110,21 @@ export default function CustomerDashboard() {
 
             {activeTab === 'profile' && (
               <div>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-8">My Profile</h2>
-                <div className="bg-white rounded-3xl border border-pink-100 p-8 shadow-sm">
-                  <div className="flex items-center gap-6 mb-8 border-b border-slate-100 pb-8">
-                    <div className="w-24 h-24 rounded-full bg-pink-100 flex items-center justify-center text-4xl font-black text-pink-500">
+                <h2 className="text-2xl font-extrabold text-zinc-900 mb-8">My Profile</h2>
+                <div className="border border-zinc-200 bg-white p-8">
+                  <div className="flex items-center gap-6 mb-8 border-b border-zinc-100 pb-8">
+                    <div className="w-20 h-20 bg-zinc-100 flex items-center justify-center text-3xl font-extrabold text-zinc-900">
                       {user?.name ? user.name[0].toUpperCase() : '?'}
                     </div>
                     <div>
-                      <h3 className="text-2xl font-black text-slate-800">{user?.name || 'Customer Name'}</h3>
-                      <p className="text-slate-500 font-medium">{user?.phone}</p>
+                      <h3 className="text-xl font-bold text-zinc-900">{user?.name || 'Customer Name'}</h3>
+                      <p className="text-zinc-500 font-medium text-sm mt-1">{user?.phone}</p>
                     </div>
                   </div>
                   
                   <button 
-                    onClick={() => { clearAuth(); router.push('/'); }}
-                    className="bg-red-50 hover:bg-red-100 text-red-600 px-6 py-3 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
+                    onClick={() => { logout(); router.push('/'); }}
+                    className="border border-red-200 bg-white hover:bg-red-50 text-red-600 px-6 py-3 font-bold text-xs uppercase tracking-wider transition-colors flex items-center gap-2"
                   >
                     Sign Out
                   </button>

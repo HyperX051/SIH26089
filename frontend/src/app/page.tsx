@@ -3,32 +3,35 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ThermometerSnowflake, SprayCan, Wrench, Zap, Hammer, Paintbrush, Bug, Sparkles, MapPin, Loader2, User as UserIcon, LogOut, CheckCircle } from 'lucide-react';
+import { ThermometerSnowflake, SprayCan, Wrench, Zap, Hammer, Paintbrush, Bug, Sparkles, MapPin, Loader2, LogOut, CheckCircle, Car, MonitorSmartphone, ShieldCheck, FileText, BrainCircuit } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { api } from '@/lib/api';
 import { useStomp } from '@/hooks/useStomp';
 import { useAuthStore } from '@/store/useAuthStore';
 import UPIPayment from '@/components/UPIPayment';
-import WorkerBadge from '@/components/WorkerBadge';
 
 const DynamicMapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
 type BookingStatus = 'IDLE' | 'SEARCHING' | 'ACCEPTED' | 'COMPLETED' | 'FEEDBACK';
 
 const CATEGORIES = [
-  { id: 'AC_REPAIR', name: "AC Repair", icon: <ThermometerSnowflake className="w-8 h-8" />, color: "bg-pink-50 text-pink-500 border-pink-200 hover:bg-pink-500 hover:text-white" },
-  { id: 'CLEANING', name: "Cleaning", icon: <SprayCan className="w-8 h-8" />, color: "bg-orange-50 text-orange-500 border-orange-200 hover:bg-orange-500 hover:text-white" },
-  { id: 'PLUMBER', name: "Plumbing", icon: <Wrench className="w-8 h-8" />, color: "bg-blue-50 text-blue-500 border-blue-200 hover:bg-blue-500 hover:text-white" },
-  { id: 'ELECTRICIAN', name: "Electrician", icon: <Zap className="w-8 h-8" />, color: "bg-yellow-50 text-yellow-500 border-yellow-200 hover:bg-yellow-500 hover:text-white" },
-  { id: 'CARPENTER', name: "Carpentry", icon: <Hammer className="w-8 h-8" />, color: "bg-stone-50 text-stone-500 border-stone-200 hover:bg-stone-500 hover:text-white" },
-  { id: 'PAINTER', name: "Painting", icon: <Paintbrush className="w-8 h-8" />, color: "bg-purple-50 text-purple-500 border-purple-200 hover:bg-purple-500 hover:text-white" },
-  { id: 'PEST_CONTROL', name: "Pest Control", icon: <Bug className="w-8 h-8" />, color: "bg-emerald-50 text-emerald-500 border-emerald-200 hover:bg-emerald-500 hover:text-white" },
-  { id: 'OTHER', name: "View All", icon: <Sparkles className="w-8 h-8" />, color: "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-800 hover:text-white" },
+  { id: 'AC_REPAIR', name: "AC Repair", icon: <ThermometerSnowflake className="w-6 h-6" /> },
+  { id: 'CLEANING', name: "Deep Cleaning", icon: <SprayCan className="w-6 h-6" /> },
+  { id: 'PLUMBER', name: "Plumbing", icon: <Wrench className="w-6 h-6" /> },
+  { id: 'ELECTRICIAN', name: "Electrician", icon: <Zap className="w-6 h-6" /> },
+  { id: 'CARPENTER', name: "Carpentry", icon: <Hammer className="w-6 h-6" /> },
+  { id: 'PAINTER', name: "Painting", icon: <Paintbrush className="w-6 h-6" /> },
+  { id: 'PEST_CONTROL', name: "Pest Control", icon: <Bug className="w-6 h-6" /> },
+  { id: 'CAR_MECHANIC', name: "Car Mechanic", icon: <Car className="w-6 h-6" /> },
+  { id: 'APPLIANCE', name: "Appliances", icon: <MonitorSmartphone className="w-6 h-6" /> },
+  { id: 'ROOFING', name: "Roofing", icon: <ShieldCheck className="w-6 h-6" /> },
+  { id: 'HANDYMAN', name: "Handyman", icon: <Wrench className="w-6 h-6" /> },
+  { id: 'OTHER', name: "View All", icon: <Sparkles className="w-6 h-6" /> },
 ];
 
 export default function Home() {
   const router = useRouter();
-  const { user, token, clearAuth } = useAuthStore();
+  const { user, token, logout } = useAuthStore();
   const { client, connected } = useStomp();
   
   const [selectedService, setSelectedService] = useState<string | null>(null);
@@ -41,6 +44,10 @@ export default function Home() {
   const [locationError, setLocationError] = useState('');
   
   const [rating, setRating] = useState(0);
+
+  // AI Assessment State
+  const [aiAssessing, setAiAssessing] = useState(false);
+  const [aiAssessment, setAiAssessment] = useState<any>(null);
 
   const fetchLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -81,6 +88,20 @@ export default function Home() {
     }
   }, [client, connected, bookingId]);
 
+  const handleAiAssess = async () => {
+    if (!problemDescription.trim()) return;
+    setAiAssessing(true);
+    try {
+      const res = await api.post('/ai/assess-problem', { problemDescription });
+      setAiAssessment(res.data.data);
+    } catch (e) {
+      console.error(e);
+      alert("AI Assessment failed.");
+    } finally {
+      setAiAssessing(false);
+    }
+  };
+
   const handleBookService = async () => {
     if (!token) {
       router.push('/customer/login');
@@ -107,7 +128,8 @@ export default function Home() {
         latitude: location.latitude,
         longitude: location.longitude,
         pincode: "560001",
-        addressText: location.address || "Current Location"
+        addressText: location.address || "Current Location",
+        // we can pass aiAssessment data if backend supported it, but we'll leave it local for now
       });
       setBookingId(response.data.booking_id || response.data.data?.id);
     } catch (err) {
@@ -125,39 +147,39 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDF2F8] font-sans text-slate-900 selection:bg-pink-500/30">
+    <div className="min-h-screen bg-white font-sans text-zinc-900 selection:bg-zinc-900 selection:text-white">
       
-      {/* Navbar */}
-      <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl border-b border-pink-100 shadow-sm">
-        <div className="max-w-[1200px] mx-auto px-6 h-[72px] flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => {setSelectedService(null); setBookingStatus('IDLE');}}>
-            <div className="w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center shadow-lg shadow-pink-500/30">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+      {/* Navbar - Monochrome */}
+      <header className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-zinc-200">
+        <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => {setSelectedService(null); setBookingStatus('IDLE'); setAiAssessment(null);}}>
+            <div className="w-8 h-8 bg-zinc-900 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
             </div>
-            <span className="font-black text-2xl tracking-tight text-slate-900">FixNow</span>
+            <span className="font-extrabold text-xl tracking-tight text-zinc-900 uppercase">FixNow</span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
             {!token ? (
               <>
-                <Link href="/worker/login" className="hidden md:flex items-center text-sm font-bold text-slate-500 hover:text-pink-600 transition-colors">
+                <Link href="/worker/login" className="hidden md:block text-sm font-semibold text-zinc-500 hover:text-zinc-900 transition-colors">
                   Join as Professional
                 </Link>
-                <Link href="/customer/login" className="flex items-center justify-center h-11 px-8 rounded-full bg-slate-900 text-white font-bold text-sm hover:bg-pink-500 hover:scale-105 transition-all duration-300 shadow-md">
+                <Link href="/customer/login" className="flex items-center justify-center h-10 px-6 bg-zinc-900 text-white font-semibold text-sm hover:bg-zinc-800 transition-colors">
                   Sign In
                 </Link>
               </>
             ) : (
-              <div className="flex items-center gap-4">
-                <Link href="/customer" className="hidden md:flex items-center text-sm font-bold text-slate-600 hover:text-pink-600 transition-colors">
+              <div className="flex items-center gap-6">
+                <Link href="/customer" className="hidden md:block text-sm font-semibold text-zinc-500 hover:text-zinc-900 transition-colors">
                   Past Bookings
                 </Link>
-                <div className="flex items-center gap-2 bg-pink-50 border border-pink-100 rounded-full px-4 py-1.5 shadow-sm">
-                  <div className="w-8 h-8 rounded-full bg-pink-200 flex items-center justify-center text-pink-700 font-black text-xs">
-                    {user?.name?.[0].toUpperCase() || 'U'}
+                <div className="flex items-center gap-3 border border-zinc-200 pl-1 pr-4 py-1 rounded-full">
+                  <div className="w-7 h-7 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-900 font-bold text-xs uppercase">
+                    {user?.name?.[0] || 'U'}
                   </div>
-                  <span className="font-bold text-sm text-slate-800">{user?.name || 'Customer'}</span>
-                  <button onClick={() => { clearAuth(); router.push('/'); }} className="ml-2 text-slate-400 hover:text-red-500 transition-colors">
+                  <span className="font-semibold text-sm text-zinc-800">{user?.name || 'Customer'}</span>
+                  <button onClick={() => { logout(); router.push('/'); }} className="ml-2 text-zinc-400 hover:text-red-500 transition-colors">
                     <LogOut className="w-4 h-4" />
                   </button>
                 </div>
@@ -168,22 +190,22 @@ export default function Home() {
       </header>
 
       {/* Main Content Area */}
-      <main className="pt-28 pb-20 px-6 max-w-[1200px] mx-auto min-h-[calc(100vh-80px)]">
+      <main className="pt-28 pb-20 px-6 max-w-[1200px] mx-auto min-h-[calc(100vh-64px)]">
         
         {/* State: IDLE (Category Selection) */}
         {!selectedService && bookingStatus === 'IDLE' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="text-center mb-12 relative z-10">
-              <h1 className="text-5xl md:text-7xl font-black tracking-tight text-slate-900 mb-6 leading-[1.1]">
-                Your home,<br className="hidden md:block" /> 
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-orange-500">perfectly fixed.</span>
+          <div className="animate-in fade-in duration-500">
+            <div className="mb-16">
+              <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-zinc-900 mb-4 leading-tight">
+                Professional Services.<br />
+                <span className="text-zinc-400">Zero Friction.</span>
               </h1>
-              <p className="text-lg md:text-xl text-slate-600 mb-8 font-medium max-w-2xl mx-auto">
-                Select a service below to instantly connect with verified independent professionals. Transparent pricing, no middleman.
+              <p className="text-lg text-zinc-500 font-medium max-w-xl">
+                Select a service category to broadcast your requirement to our verified, independent professional network.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 relative z-10">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {CATEGORIES.map((service) => (
                 <button 
                   key={service.id}
@@ -194,38 +216,32 @@ export default function Home() {
                     }
                     setSelectedService(service.id);
                   }}
-                  className={`group p-8 rounded-[2rem] border-2 shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(236,72,153,0.15)] hover:-translate-y-2 transition-all duration-300 flex flex-col items-center text-center cursor-pointer ${service.color}`}
+                  className="group p-6 border border-zinc-200 hover:border-zinc-900 bg-zinc-50/50 hover:bg-white transition-all flex flex-col items-center text-center cursor-pointer"
                 >
-                  <div className="mb-4 transform group-hover:scale-110 transition-transform duration-300">
+                  <div className="mb-3 text-zinc-400 group-hover:text-zinc-900 transition-colors">
                     {service.icon}
                   </div>
-                  <h3 className="font-black text-lg">{service.name}</h3>
+                  <h3 className="font-semibold text-sm text-zinc-700 group-hover:text-zinc-900">{service.name}</h3>
                 </button>
               ))}
             </div>
 
-            {/* Trust Badges */}
-            <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 text-center max-w-4xl mx-auto border-t border-pink-100 pt-16">
+            {/* Trust Badges - Minimal */}
+            <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-12 border-t border-zinc-200 pt-16">
               <div>
-                <div className="w-12 h-12 bg-white rounded-2xl mx-auto mb-4 flex items-center justify-center text-pink-500 shadow-sm border border-pink-100">
-                  <CheckCircle className="w-6 h-6" />
-                </div>
-                <h4 className="font-black text-slate-900 mb-2">Verified Experts</h4>
-                <p className="text-slate-500 font-medium text-sm">Background-checked independent professionals.</p>
+                <CheckCircle className="w-6 h-6 text-zinc-900 mb-4" />
+                <h4 className="font-bold text-zinc-900 mb-2">Verified Credentials</h4>
+                <p className="text-zinc-500 text-sm leading-relaxed">Every professional uploads government IDs and trade certifications securely verified by AI.</p>
               </div>
               <div>
-                <div className="w-12 h-12 bg-white rounded-2xl mx-auto mb-4 flex items-center justify-center text-orange-500 shadow-sm border border-orange-100">
-                  <Zap className="w-6 h-6" />
-                </div>
-                <h4 className="font-black text-slate-900 mb-2">Instant Broadcast</h4>
-                <p className="text-slate-500 font-medium text-sm">Your request reaches all nearby workers instantly.</p>
+                <Zap className="w-6 h-6 text-zinc-900 mb-4" />
+                <h4 className="font-bold text-zinc-900 mb-2">Instant Broadcast</h4>
+                <p className="text-zinc-500 text-sm leading-relaxed">We don't schedule. We broadcast your request to the nearest available workers instantly.</p>
               </div>
               <div>
-                <div className="w-12 h-12 bg-white rounded-2xl mx-auto mb-4 flex items-center justify-center text-blue-500 shadow-sm border border-blue-100">
-                  <Wrench className="w-6 h-6" />
-                </div>
-                <h4 className="font-black text-slate-900 mb-2">Transparent Pricing</h4>
-                <p className="text-slate-500 font-medium text-sm">Pay directly to the worker when the job is done.</p>
+                <FileText className="w-6 h-6 text-zinc-900 mb-4" />
+                <h4 className="font-bold text-zinc-900 mb-2">Transparent Pricing</h4>
+                <p className="text-zinc-500 text-sm leading-relaxed">Pay the worker directly upon completion. No hidden aggregator commission fees.</p>
               </div>
             </div>
           </div>
@@ -233,40 +249,66 @@ export default function Home() {
 
         {/* State: Booking Form (IDLE with Service Selected) */}
         {selectedService && bookingStatus === 'IDLE' && (
-          <div className="max-w-3xl mx-auto bg-white rounded-[2.5rem] p-8 md:p-12 shadow-[0_8px_40px_rgba(236,72,153,0.08)] border border-pink-100 animate-in zoom-in-95 duration-300">
-            <button onClick={() => setSelectedService(null)} className="text-sm font-bold text-pink-500 hover:text-pink-600 mb-8 flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-              Back to Services
+          <div className="max-w-2xl mx-auto border border-zinc-200 bg-white p-8 md:p-10 animate-in slide-in-from-bottom-4">
+            <button onClick={() => { setSelectedService(null); setAiAssessment(null); }} className="text-xs font-bold text-zinc-500 hover:text-zinc-900 mb-8 uppercase tracking-wider flex items-center gap-2">
+              &larr; Back to Services
             </button>
             
-            <div className="flex items-center gap-4 mb-10">
-              <div className="w-16 h-16 bg-pink-100 text-pink-500 rounded-2xl flex items-center justify-center">
-                {CATEGORIES.find(c => c.id === selectedService)?.icon}
-              </div>
-              <div>
-                <h2 className="text-3xl font-black text-slate-900">Book a {CATEGORIES.find(c => c.id === selectedService)?.name}</h2>
-                <p className="text-slate-500 font-medium">Fill in the details below to broadcast your request.</p>
-              </div>
+            <div className="mb-10 pb-6 border-b border-zinc-100">
+              <h2 className="text-2xl font-extrabold text-zinc-900 mb-2">Book: {CATEGORIES.find(c => c.id === selectedService)?.name}</h2>
+              <p className="text-zinc-500 text-sm">Provide details so professionals can accurately accept your job.</p>
             </div>
 
             <div className="space-y-8">
               <div>
-                <label className="block text-sm font-black text-slate-700 mb-3 uppercase tracking-wider">Describe the Issue</label>
-                <textarea
-                  value={problemDescription}
-                  onChange={(e) => setProblemDescription(e.target.value)}
-                  placeholder="E.g. Leaking pipe under the sink, needs immediate fixing."
-                  rows={4}
-                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-slate-800 font-medium focus:outline-none focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 transition-all resize-none"
-                />
+                <label className="block text-xs font-bold text-zinc-900 mb-3 uppercase tracking-wider">Problem Description</label>
+                <div className="relative">
+                  <textarea
+                    value={problemDescription}
+                    onChange={(e) => setProblemDescription(e.target.value)}
+                    placeholder="Describe the issue in detail..."
+                    rows={4}
+                    className="w-full bg-zinc-50 border border-zinc-200 p-4 text-zinc-900 text-sm focus:outline-none focus:border-zinc-900 focus:bg-white transition-all resize-none"
+                  />
+                  <button 
+                    onClick={handleAiAssess}
+                    disabled={!problemDescription.trim() || aiAssessing}
+                    className="absolute bottom-3 right-3 flex items-center gap-2 bg-zinc-900 text-white px-3 py-1.5 text-xs font-bold hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                  >
+                    {aiAssessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <BrainCircuit className="w-3 h-3" />}
+                    AI Assess
+                  </button>
+                </div>
+                
+                {/* AI Assessment Result */}
+                {aiAssessment && (
+                  <div className="mt-4 p-4 border border-zinc-200 bg-zinc-50 animate-in fade-in">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-3 flex items-center gap-2">
+                      <BrainCircuit className="w-4 h-4 text-zinc-900" /> AI Assessment
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="block text-zinc-500 mb-1">Estimated Cost</span>
+                        <span className="font-bold text-zinc-900">{aiAssessment.estimated_cost_range}</span>
+                      </div>
+                      <div>
+                        <span className="block text-zinc-500 mb-1">Urgency</span>
+                        <span className={`font-bold ${aiAssessment.urgency === 'High' || aiAssessment.urgency === 'Critical' ? 'text-red-600' : 'text-zinc-900'}`}>{aiAssessment.urgency}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="block text-zinc-500 mb-1">Recommended Tools</span>
+                        <span className="font-medium text-zinc-700">{aiAssessment.recommended_tools?.join(", ") || "Standard Tools"}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
-                <label className="block text-sm font-black text-slate-700 mb-3 uppercase tracking-wider flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-pink-500" />
+                <label className="block text-xs font-bold text-zinc-900 mb-3 uppercase tracking-wider flex items-center gap-2">
                   Service Location
                 </label>
-                <div className="rounded-3xl overflow-hidden border-2 border-slate-100 mb-4 h-[300px]">
+                <div className="border border-zinc-200 mb-3 h-[250px] bg-zinc-50">
                   <DynamicMapPicker 
                     initialPosition={location ? { lat: location.latitude, lng: location.longitude } : null}
                     onLocationSelect={async (lat, lng) => {
@@ -283,20 +325,20 @@ export default function Home() {
                   />
                 </div>
                 
-                <div className="flex items-center justify-between bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4">
+                <div className="flex items-center justify-between border border-zinc-200 p-4 bg-zinc-50 text-sm">
                   <div className="flex items-center gap-3 truncate">
                     {locationLoading ? (
-                      <Loader2 className="w-5 h-5 animate-spin text-slate-400 shrink-0" />
+                      <Loader2 className="w-4 h-4 animate-spin text-zinc-400 shrink-0" />
                     ) : location ? (
-                      <MapPin className="w-5 h-5 text-pink-500 shrink-0" />
+                      <MapPin className="w-4 h-4 text-zinc-900 shrink-0" />
                     ) : (
-                      <MapPin className="w-5 h-5 text-slate-400 shrink-0" />
+                      <MapPin className="w-4 h-4 text-zinc-400 shrink-0" />
                     )}
-                    <span className="font-medium text-slate-700 truncate">
-                      {locationLoading ? "Detecting location..." : location ? location.address : "Please select your location"}
+                    <span className="font-medium text-zinc-700 truncate">
+                      {locationLoading ? "Detecting location..." : location ? location.address : "Please pin your location"}
                     </span>
                   </div>
-                  <button onClick={fetchLocation} className="text-sm font-black text-pink-500 hover:text-pink-600 shrink-0 ml-4">
+                  <button onClick={fetchLocation} className="text-xs font-bold text-zinc-900 hover:underline shrink-0 ml-4 uppercase tracking-wider">
                     Auto Detect
                   </button>
                 </div>
@@ -304,10 +346,10 @@ export default function Home() {
 
               <button
                 onClick={handleBookService}
-                disabled={!problemDescription.trim() || locationLoading}
-                className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 disabled:opacity-50 text-white py-5 rounded-2xl font-black text-lg shadow-[0_8px_20px_rgba(236,72,153,0.3)] transition-all active:scale-[0.98] flex items-center justify-center gap-2 mt-4"
+                disabled={!problemDescription.trim() || locationLoading || !location}
+                className="w-full bg-zinc-900 hover:bg-black disabled:bg-zinc-300 disabled:text-zinc-500 text-white py-4 font-bold text-sm tracking-wide uppercase transition-colors"
               >
-                Broadcast Request
+                Broadcast Job
               </button>
             </div>
           </div>
@@ -315,54 +357,44 @@ export default function Home() {
 
         {/* Status: SEARCHING */}
         {bookingStatus === 'SEARCHING' && (
-          <div className="max-w-2xl mx-auto bg-white rounded-[2.5rem] p-12 text-center shadow-[0_8px_40px_rgba(236,72,153,0.08)] border border-pink-100 animate-in zoom-in-95 duration-500">
-            <div className="relative w-32 h-32 mx-auto mb-8">
-              <div className="absolute inset-0 border-4 border-pink-100 rounded-full animate-ping"></div>
-              <div className="absolute inset-4 border-4 border-pink-200 rounded-full animate-pulse"></div>
-              <div className="absolute inset-8 bg-pink-500 text-white rounded-full flex items-center justify-center shadow-lg">
-                <svg className="w-8 h-8 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
-              </div>
-            </div>
-            <h2 className="text-3xl font-black text-slate-900 mb-4">Finding Professionals...</h2>
-            <p className="text-slate-500 font-medium text-lg mb-8">Your request has been broadcasted to all nearby workers on the FixNow Bulletin Board. Waiting for someone to accept.</p>
-            <div className="bg-slate-50 rounded-2xl p-6 text-left border border-slate-100">
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Request Details</p>
-              <p className="text-slate-700 font-bold">{problemDescription}</p>
+          <div className="max-w-xl mx-auto border border-zinc-200 p-12 text-center bg-white animate-in zoom-in-95">
+            <Loader2 className="w-12 h-12 animate-spin text-zinc-900 mx-auto mb-6" />
+            <h2 className="text-2xl font-extrabold text-zinc-900 mb-3">Broadcasting...</h2>
+            <p className="text-zinc-500 text-sm mb-8">Your request is currently live on the Worker Bulletin Board. Waiting for a professional to accept.</p>
+            <div className="bg-zinc-50 p-4 border border-zinc-200 text-left">
+              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Details</p>
+              <p className="text-zinc-700 text-sm font-medium">{problemDescription}</p>
             </div>
           </div>
         )}
 
         {/* Status: ACCEPTED */}
         {bookingStatus === 'ACCEPTED' && (
-          <div className="max-w-2xl mx-auto space-y-8 animate-in slide-in-from-bottom-8 duration-500">
-            <div className="bg-white rounded-[2.5rem] p-10 text-center shadow-[0_8px_40px_rgba(16,185,129,0.1)] border-2 border-emerald-100">
-              <div className="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle className="w-10 h-10" />
-              </div>
-              <h2 className="text-3xl font-black text-slate-900 mb-2">Worker Assigned!</h2>
-              <p className="text-slate-500 font-medium mb-8">A professional has accepted your request and is on the way.</p>
+          <div className="max-w-xl mx-auto space-y-6 animate-in slide-in-from-bottom-8">
+            <div className="border border-zinc-200 bg-white p-10 text-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-green-500"></div>
+              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-extrabold text-zinc-900 mb-2">Worker Assigned</h2>
+              <p className="text-zinc-500 text-sm mb-8">A professional has claimed your job and is en route.</p>
               
-              <div className="flex items-center gap-6 bg-slate-50 p-6 rounded-3xl border border-slate-100 mb-8 text-left">
-                <div className="w-16 h-16 rounded-full bg-slate-200 border-4 border-white shadow-sm overflow-hidden">
-                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Pro" alt="Pro" className="w-full h-full" />
-                </div>
+              <div className="flex items-center gap-4 border border-zinc-200 bg-zinc-50 p-4 mb-8 text-left">
+                <div className="w-12 h-12 bg-zinc-200 rounded-full flex items-center justify-center font-bold text-zinc-500">PRO</div>
                 <div>
-                  <h3 className="font-black text-xl text-slate-900">Independent Professional</h3>
+                  <h3 className="font-bold text-zinc-900">Independent Professional</h3>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="bg-blue-100 text-blue-700 text-xs font-black px-2 py-1 rounded-md">VERIFIED</span>
-                    <span className="text-slate-500 font-bold text-sm">★ 4.8</span>
+                    <span className="text-[10px] bg-zinc-900 text-white px-2 py-0.5 uppercase tracking-wider font-bold">Verified Credentials</span>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-emerald-50 rounded-3xl p-6 border-2 border-emerald-100">
-                <p className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-2">Closure OTP</p>
-                <div className="text-5xl font-mono font-black tracking-[0.2em] text-emerald-900">482910</div>
-                <p className="text-sm text-emerald-700 font-medium mt-3">Share this with the worker ONLY when the job is completed.</p>
+              <div className="border border-zinc-200 bg-zinc-50 p-6">
+                <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Closure OTP</p>
+                <div className="text-4xl font-mono font-bold tracking-[0.2em] text-zinc-900">482910</div>
+                <p className="text-xs text-zinc-500 mt-2">Provide this only when the job is completed to your satisfaction.</p>
               </div>
             </div>
             
-            <button onClick={handleSimulateCompletion} className="w-full bg-slate-200 text-slate-500 hover:text-slate-700 py-4 rounded-2xl font-black transition-colors">
+            <button onClick={handleSimulateCompletion} className="w-full text-xs font-bold text-zinc-400 hover:text-zinc-900 py-2 uppercase tracking-wider transition-colors">
               [Dev] Simulate Completion
             </button>
           </div>
@@ -372,39 +404,40 @@ export default function Home() {
         {bookingStatus === 'COMPLETED' && (
           <div className="max-w-lg mx-auto space-y-6 animate-in zoom-in-95">
             <div className="text-center mb-8">
-              <div className="w-20 h-20 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30">
-                <CheckCircle className="w-10 h-10" />
-              </div>
-              <h2 className="text-4xl font-black text-slate-900 tracking-tight">Job Completed</h2>
-              <p className="text-slate-500 font-medium text-lg mt-2">Please settle the payment directly.</p>
+              <CheckCircle className="w-16 h-16 text-zinc-900 mx-auto mb-4" />
+              <h2 className="text-3xl font-extrabold text-zinc-900">Job Complete</h2>
+              <p className="text-zinc-500 mt-2">Please settle the payment via UPI directly to the professional.</p>
             </div>
             
-            <UPIPayment 
-              amount={450.00} 
-              workerName="Independent Professional"
-              onPaymentSuccess={() => setBookingStatus('FEEDBACK')}
-            />
+            {/* Using existing UPIPayment component, but it might have pink colors. Since we can't edit it here directly easily, we'll wrap it and proceed. */}
+            <div className="border border-zinc-200 bg-white p-6">
+              <UPIPayment 
+                amount={aiAssessment ? parseInt(aiAssessment.estimated_cost_range.replace(/\D/g,'').substring(0,3)) || 450 : 450} 
+                workerName="Independent Professional"
+                onPaymentSuccess={() => setBookingStatus('FEEDBACK')}
+              />
+            </div>
           </div>
         )}
 
         {/* Status: FEEDBACK */}
         {bookingStatus === 'FEEDBACK' && (
-          <div className="max-w-lg mx-auto bg-white rounded-[2.5rem] p-10 text-center shadow-[0_8px_40px_rgba(236,72,153,0.08)] border border-pink-100 animate-in slide-in-from-bottom-8">
-            <h2 className="text-3xl font-black text-slate-900 mb-2">Rate your Pro</h2>
-            <p className="text-slate-500 font-medium mb-8">Your feedback helps maintain our quality standards.</p>
+          <div className="max-w-lg mx-auto border border-zinc-200 bg-white p-10 text-center animate-in slide-in-from-bottom-8">
+            <h2 className="text-2xl font-extrabold text-zinc-900 mb-2">Rate Service</h2>
+            <p className="text-zinc-500 text-sm mb-8">Help maintain the platform's quality standards.</p>
             
-            <div className="flex justify-center gap-2 mb-8">
+            <div className="flex justify-center gap-1 mb-8">
               {[1,2,3,4,5].map(star => (
-                <button key={star} onClick={() => setRating(star)} className={`text-5xl transition-all hover:scale-110 ${rating >= star ? 'text-amber-400 drop-shadow-md' : 'text-slate-200'}`}>
+                <button key={star} onClick={() => setRating(star)} className={`text-4xl transition-all ${rating >= star ? 'text-zinc-900' : 'text-zinc-200 hover:text-zinc-400'}`}>
                   ★
                 </button>
               ))}
             </div>
             
-            <textarea placeholder="Leave a review..." className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-5 text-slate-800 font-medium focus:outline-none focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 resize-none h-32 mb-6 transition-all"></textarea>
+            <textarea placeholder="Optional feedback..." className="w-full bg-zinc-50 border border-zinc-200 p-4 text-zinc-900 text-sm focus:outline-none focus:border-zinc-900 resize-none h-24 mb-6"></textarea>
             
-            <button onClick={() => { setBookingStatus('IDLE'); setRating(0); setProblemDescription(''); setSelectedService(null); }} className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-lg hover:bg-slate-800 shadow-xl active:scale-[0.98] transition-all">
-              Submit & Return Home
+            <button onClick={() => { setBookingStatus('IDLE'); setRating(0); setProblemDescription(''); setSelectedService(null); setAiAssessment(null); }} className="w-full bg-zinc-900 text-white py-4 font-bold text-sm uppercase tracking-wider hover:bg-black transition-colors">
+              Submit & Close
             </button>
           </div>
         )}

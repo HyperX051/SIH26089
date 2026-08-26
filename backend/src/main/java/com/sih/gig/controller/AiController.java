@@ -29,9 +29,16 @@ public class AiController {
         return ResponseEntity.ok(ApiResponse.ok(aiService.ocrReceipt(req)));
     }
 
-    /** POST /api/v1/ai/verify-ncct */
-    @PostMapping("/verify-ncct")
-    public ResponseEntity<ApiResponse<?>> verifyNcct(@Valid @RequestBody VerifyNcctRequest req) {
-        return ResponseEntity.ok(ApiResponse.ok(aiService.verifyNcct(req)));
+    /** POST /api/v1/ai/verify-credential */
+    @PostMapping("/verify-credential")
+    public ResponseEntity<ApiResponse<?>> verifyCredential(@Valid @RequestBody VerifyNcctRequest req) {
+        return ResponseEntity.ok(ApiResponse.ok(aiService.verifyCredential(req)));
+    }
+
+    /** POST /api/v1/ai/assess-problem */
+    @PostMapping("/assess-problem")
+    public ResponseEntity<ApiResponse<?>> assessProblem(@RequestBody java.util.Map<String, String> payload) {
+        String prompt = payload.getOrDefault("problemDescription", "");
+        return ResponseEntity.ok(ApiResponse.ok(aiService.assessProblem(prompt)));
     }
 }

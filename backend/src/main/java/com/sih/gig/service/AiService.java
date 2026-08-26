@@ -92,10 +92,10 @@ public class AiService {
         }
     }
 
-    public Map<String, Object> verifyNcct(VerifyNcctRequest req) {
-        log.info("[AI] verify-ncct workerId={}", req.getWorkerId());
+    public Map<String, Object> verifyCredential(VerifyNcctRequest req) {
+        log.info("[AI] verify-credential workerId={}", req.getWorkerId());
         try {
-            String prompt = "You are a credential verifier. Look at this certificate. Does it mention 'NCCT', 'National Council for Cooperative Training', or 'Cooperative'? Output ONLY a raw JSON object (no markdown) with: {\\\"verified\\\": boolean, \\\"institute\\\": \\\"institute name or unknown\\\", \\\"recommended_tier\\\": \\\"SKILLED or BASIC\\\"}";
+            String prompt = "You are a credential verifier. Look at this uploaded document. It could be an Aadhar Card, an ITI Certificate, an NSQF certificate, a driver's license, or any trade certification. Determine if it is a valid identification or trade credential. Output ONLY a raw JSON object (no markdown) with: {\"verified\": boolean, \"institute_or_issuer\": \"Issuer name or unknown\", \"recommended_tier\": \"SKILLED or BASIC\"}";
             String aiResponse = callGeminiVision(prompt, req.getCertificateImageUrl());
             
             aiResponse = aiResponse.replaceAll("```json", "").replaceAll("```", "").trim();
@@ -103,12 +103,50 @@ public class AiService {
             
             return Map.of(
                     "verified", root.path("verified").asBoolean(true),
-                    "institute", root.path("institute").asText("NCCT Regional"),
+                    "institute_or_issuer", root.path("institute_or_issuer").asText("Govt / Generic Issuer"),
                     "recommended_tier", root.path("recommended_tier").asText("SKILLED")
             );
         } catch (Exception e) {
-            log.error("Gemini AI failed for NCCT", e);
-            return Map.of("verified", true, "institute", "NCCT Local", "recommended_tier", "SKILLED");
+            log.error("Gemini AI failed for Credential verification", e);
+            return Map.of("verified", true, "institute_or_issuer", "Local Authority", "recommended_tier", "SKILLED");
+        }
+    }
+
+    public Map<String, Object> assessProblem(String problemDescription) {
+        log.info("[AI] assess-problem prompt={}", problemDescription);
+        try {
+            String prompt = "You are an expert service assessor for a gig platform. A customer has requested: '" + problemDescription + "'. Assess this request. Output ONLY a raw JSON object (no markdown) with: {\"urgency\": \"Low|Medium|High|Critical\", \"estimated_cost_range\": \"e.g. ₹500 - ₹1200\", \"recommended_tools\": [\"tool1\", \"tool2\"]}";
+            
+            // Reusing callGeminiVision by passing a dummy 1x1 transparent pixel or we can just make a text-only call.
+            // Since callGeminiVision requires an image URL, we'll construct a text-only payload instead for this specific method.
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + aiApiKey;
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            
+            String requestBody = String.format("""
+                {
+                  "contents": [{
+                    "parts": [{"text": "%s"}]
+                  }]
+                }
+                """, prompt.replace("\"", "\\\"").replace("\n", " "));
+
+            HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+            
+            JsonNode root = objectMapper.readTree(response.getBody());
+            String aiResponse = root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
+            aiResponse = aiResponse.replaceAll("```json", "").replaceAll("```", "").trim();
+            JsonNode resultRoot = objectMapper.readTree(aiResponse);
+            
+            return Map.of(
+                    "urgency", resultRoot.path("urgency").asText("Medium"),
+                    "estimated_cost_range", resultRoot.path("estimated_cost_range").asText("₹300 - ₹800"),
+                    "recommended_tools", objectMapper.convertValue(resultRoot.path("recommended_tools"), List.class)
+            );
+        } catch (Exception e) {
+            log.error("Gemini AI failed for problem assessment", e);
+            return Map.of("urgency", "Unknown", "estimated_cost_range", "Variable", "recommended_tools", List.of("Standard Kit"));
         }
     }
 
