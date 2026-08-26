@@ -207,6 +207,19 @@ public class BookingService {
         );
     }
 
+    public java.util.List<Map<String, Object>> getCustomerBookings(User customer) {
+        return bookingRepository.findByCustomerId(customer.getId())
+                .stream()
+                .map(b -> Map.<String, Object>of(
+                        "id", b.getId().toString(),
+                        "serviceType", b.getServiceType(),
+                        "status", b.getStatus(),
+                        "amount", b.getBaseWage().add(b.getMaterialCost()),
+                        "date", b.getCreatedAt() != null ? b.getCreatedAt().toString() : ""
+                ))
+                .toList();
+    }
+
     /**
      * Called from WebSocket GIG_RESPONSE handler.
      */

@@ -39,6 +39,13 @@ public class BookingController {
         return ResponseEntity.ok(ApiResponse.ok(bookingService.getBookingDetails(id)));
     }
 
+    /** GET /api/v1/bookings/customer */
+    @GetMapping("/customer")
+    public ResponseEntity<ApiResponse<?>> getCustomerBookings(Authentication auth) {
+        User currentUser = (User) auth.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(bookingService.getCustomerBookings(currentUser)));
+    }
+
     /** POST /api/v1/bookings/:id/cancel */
     @PostMapping("/{id}/cancel")
     public ResponseEntity<ApiResponse<?>> cancelBooking(

@@ -54,6 +54,13 @@ public class Worker {
     @Column(name = "photo_url", length = 255)
     private String photoUrl;
 
+    @Column(name = "certification_url", length = 255)
+    private String certificationUrl;
+
+    @Builder.Default
+    @Column(name = "approval_status", length = 50)
+    private String approvalStatus = "PENDING";
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;

@@ -169,7 +169,23 @@ export default function WorkerApp() {
           <h1 className="text-xl font-bold text-white tracking-tight">
             {activeTab === 'JOBS' ? 'Dispatch Control' : activeTab === 'BILLING' ? 'Past Billing' : activeTab === 'WELFARE' ? 'Cooperative Welfare' : 'Professional Profile'}
           </h1>
-          <button className="bg-red-500/10 text-red-500 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-500/20 transition-colors">
+          <button 
+            onClick={async () => {
+              try {
+                await api.post('/safety/sos', {
+                  bookingId: activeBookingId,
+                  latitude: 12.9716, // dummy or real if added
+                  longitude: 77.5946,
+                  telemetry: { battery: 75 }
+                });
+                alert('SOS Alert Triggered! Federation command center notified.');
+              } catch (e) {
+                console.error(e);
+                alert('Failed to trigger SOS');
+              }
+            }}
+            className="bg-red-500/10 text-red-500 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-500/20 transition-colors"
+          >
             Emergency SOS
           </button>
         </header>

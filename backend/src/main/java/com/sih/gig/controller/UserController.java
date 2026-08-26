@@ -26,7 +26,8 @@ public class UserController {
     public ResponseEntity<?> completeProfile(
             @AuthenticationPrincipal User user,
             @RequestParam("name") String name,
-            @RequestParam(value = "photo", required = false) MultipartFile photo) {
+            @RequestParam(value = "photo", required = false) MultipartFile photo,
+            @RequestParam(value = "certificate", required = false) MultipartFile certificate) {
 
         if (user == null) {
             return ResponseEntity.status(401).body(Map.of("message", "Unauthorized"));
@@ -39,9 +40,19 @@ public class UserController {
             Optional<Worker> optionalWorker = workerRepository.findByUserId(user.getId());
             if (optionalWorker.isPresent()) {
                 Worker worker = optionalWorker.get();
+                boolean workerUpdated = false;
                 if (photo != null && !photo.isEmpty()) {
                     String photoUrl = fileStorageService.storeFile(photo);
                     worker.setPhotoUrl(photoUrl);
+                    workerUpdated = true;
+                }
+                if (certificate != null && !certificate.isEmpty()) {
+                    String certUrl = fileStorageService.storeFile(certificate);
+                    worker.setCertificationUrl(certUrl);
+                    worker.setApprovalStatus("PENDING");
+                    workerUpdated = true;
+                }
+                if (workerUpdated) {
                     workerRepository.save(worker);
                 }
             }

@@ -17,6 +17,9 @@ export default function CustomerApp() {
   const [rating, setRating] = useState(0);
   const [bookingId, setBookingId] = useState<string | null>(null);
 
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'bookings' | 'profile'>('dashboard');
+  const [pastBookings, setPastBookings] = useState<any[]>([]);
+
   // Location state
   const [location, setLocation] = useState<{ latitude: number; longitude: number; address: string } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -24,6 +27,21 @@ export default function CustomerApp() {
 
   const { client, connected } = useStomp();
   const user = useAuthStore(state => state.user);
+
+  const fetchPastBookings = async () => {
+    try {
+      const res = await api.get('/bookings/customer');
+      setPastBookings(res.data.data);
+    } catch (e) {
+      console.error("Failed to fetch bookings", e);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'bookings') {
+      fetchPastBookings();
+    }
+  }, [activeTab]);
 
   // Auto-fetch location from browser when the component loads
   const fetchLocation = useCallback(() => {
@@ -207,15 +225,24 @@ export default function CustomerApp() {
           </div>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-100 text-slate-900 font-bold text-sm">
+          <button 
+            onClick={() => setActiveTab('dashboard')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-colors ${activeTab === 'dashboard' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50'}`}
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
             Dashboard
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-semibold text-sm">
+          <button 
+            onClick={() => setActiveTab('bookings')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-colors ${activeTab === 'bookings' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50'}`}
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
             Past Bookings
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 font-semibold text-sm">
+          <button 
+            onClick={() => setActiveTab('profile')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-colors ${activeTab === 'profile' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50'}`}
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
             Profile & Billing
           </button>
@@ -235,154 +262,210 @@ export default function CustomerApp() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-y-auto">
-        {/* Header — live location */}
-        <header className="h-16 flex items-center justify-between px-8 bg-white/70 backdrop-blur-md sticky top-0 z-30 border-b border-slate-200/50 hidden md:flex">
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight">Book a Service</h1>
-          <div className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-full text-sm font-semibold text-slate-600 max-w-xs truncate">
-            {locationLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-                <span>Fetching your location...</span>
-              </>
-            ) : locationError ? (
-              <>
-                <MapPin className="w-4 h-4 text-red-400" />
-                <span className="text-red-500 truncate">Location unavailable</span>
-              </>
-            ) : (
-              <>
-                <MapPin className="w-4 h-4 text-purple-500" />
-                <span className="truncate">{location?.address ?? 'Unknown location'}</span>
-              </>
-            )}
-          </div>
-        </header>
-
-        <div className="p-6 md:p-10 max-w-4xl mx-auto w-full">
-          <div className="mb-10">
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">What do you need help with?</h2>
-            <p className="text-slate-500 font-medium">Select a category, choose a service, and describe the problem.</p>
-          </div>
-
-          <div className="space-y-8">
-            {/* Category */}
-            <section>
-              <label className="block text-sm font-bold text-slate-700 mb-3">Service Category</label>
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {domains.map(d => (
-                  <button
-                    key={d.id}
-                    onClick={() => {
-                      setSelectedDomain(d.id);
-                      setSelectedService(servicesByDomain[d.id][0].id);
-                      setProblemDescription('');
-                    }}
-                    className={`px-5 py-3 rounded-2xl text-sm font-bold whitespace-nowrap transition-all shadow-sm ${selectedDomain === d.id ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                  >
-                    {d.label}
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            {/* Specific Task */}
-            <section>
-              <label className="block text-sm font-bold text-slate-700 mb-3">Specific Task</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {currentServices.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => { setSelectedService(s.id); setProblemDescription(''); }}
-                    className={`flex flex-col items-center justify-center p-6 rounded-3xl border transition-all duration-300 ${selectedService === s.id ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-md ring-2 ring-indigo-600/20' : 'bg-white border-slate-100 text-slate-600 hover:shadow-md'}`}
-                  >
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${selectedService === s.id ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-500'}`}>
-                      {s.icon}
-                    </div>
-                    <span className="text-sm font-bold text-center leading-tight">{s.label}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            {/* Problem Description + Location — appears after selecting service */}
-            <section className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Describe the Problem
-                  <span className="text-red-500 ml-1">*</span>
-                </label>
-                <textarea
-                  value={problemDescription}
-                  onChange={(e) => setProblemDescription(e.target.value)}
-                  placeholder={`E.g. "My ${currentServices.find(s => s.id === selectedService)?.label ?? 'service'} is not working since yesterday morning. There's a leaking pipe in the bathroom."`}
-                  rows={4}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all resize-none"
-                />
-                <p className="text-xs text-slate-400 mt-1 font-medium">{problemDescription.length}/500 characters</p>
-              </div>
-
-              {/* Auto-fetched location */}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-purple-500" />
-                  Your Location
-                </label>
-                <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border text-sm font-medium transition-all
-                  ${locationError ? 'border-red-200 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
-                  {locationLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin text-slate-400 shrink-0" />
-                      <span className="text-slate-500">Detecting your location...</span>
-                    </>
-                  ) : locationError ? (
-                    <>
-                      <span className="flex-1">{locationError}</span>
-                      <button onClick={fetchLocation} className="text-xs font-bold text-purple-600 hover:text-purple-700 shrink-0">
-                        Retry
-                      </button>
-                    </>
-                  ) : location ? (
-                    <>
-                      <MapPin className="w-4 h-4 text-purple-500 shrink-0" />
-                      <span className="flex-1 truncate">{location.address}</span>
-                      <button onClick={fetchLocation} className="text-xs font-bold text-purple-600 hover:text-purple-700 shrink-0">
-                        Refresh
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span className="flex-1 text-slate-500">Location not shared yet</span>
-                      <button onClick={fetchLocation} className="text-xs font-bold text-purple-600 hover:text-purple-700 shrink-0">
-                        Share Location
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* Book Button */}
-            {bookingStatus === 'IDLE' && (
-              <div className="pt-2">
-                <button
-                  onClick={handleBookService}
-                  disabled={!problemDescription.trim() || locationLoading}
-                  className="w-full md:w-auto px-10 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-bold shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                  Find Worker Instantly
-                </button>
-                {!problemDescription.trim() && (
-                  <p className="text-xs text-slate-400 font-medium mt-2">Please describe your problem to continue</p>
+        {activeTab === 'dashboard' && (
+          <>
+            {/* Header — live location */}
+            <header className="h-16 flex items-center justify-between px-8 bg-white/70 backdrop-blur-md sticky top-0 z-30 border-b border-slate-200/50 hidden md:flex">
+              <h1 className="text-xl font-bold text-slate-800 tracking-tight">Book a Service</h1>
+              <div className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-full text-sm font-semibold text-slate-600 max-w-xs truncate">
+                {locationLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                    <span>Fetching your location...</span>
+                  </>
+                ) : locationError ? (
+                  <>
+                    <MapPin className="w-4 h-4 text-red-400" />
+                    <span className="text-red-500 truncate">Location unavailable</span>
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="w-4 h-4 text-purple-500" />
+                    <span className="truncate">{location?.address ?? 'Unknown location'}</span>
+                  </>
                 )}
               </div>
-            )}
+            </header>
+
+            <div className="p-6 md:p-10 max-w-4xl mx-auto w-full">
+              <div className="mb-10">
+                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">What do you need help with?</h2>
+                <p className="text-slate-500 font-medium">Select a category, choose a service, and describe the problem.</p>
+              </div>
+
+              <div className="space-y-8">
+                {/* Category */}
+                <section>
+                  <label className="block text-sm font-bold text-slate-700 mb-3">Service Category</label>
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {domains.map(d => (
+                      <button
+                        key={d.id}
+                        onClick={() => {
+                          setSelectedDomain(d.id);
+                          setSelectedService(servicesByDomain[d.id][0].id);
+                          setProblemDescription('');
+                        }}
+                        className={`px-5 py-3 rounded-2xl text-sm font-bold whitespace-nowrap transition-all shadow-sm ${selectedDomain === d.id ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                {/* Specific Task */}
+                <section>
+                  <label className="block text-sm font-bold text-slate-700 mb-3">Specific Task</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {currentServices.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => { setSelectedService(s.id); setProblemDescription(''); }}
+                        className={`flex flex-col items-center justify-center p-6 rounded-3xl border transition-all duration-300 ${selectedService === s.id ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-md ring-2 ring-indigo-600/20' : 'bg-white border-slate-100 text-slate-600 hover:shadow-md'}`}
+                      >
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${selectedService === s.id ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-500'}`}>
+                          {s.icon}
+                        </div>
+                        <span className="text-sm font-bold text-center leading-tight">{s.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                {/* Problem Description + Location — appears after selecting service */}
+                <section className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                      Describe the Problem
+                      <span className="text-red-500 ml-1">*</span>
+                    </label>
+                    <textarea
+                      value={problemDescription}
+                      onChange={(e) => setProblemDescription(e.target.value)}
+                      placeholder={`E.g. "My ${currentServices.find(s => s.id === selectedService)?.label ?? 'service'} is not working since yesterday morning. There's a leaking pipe in the bathroom."`}
+                      rows={4}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all resize-none"
+                    />
+                    <p className="text-xs text-slate-400 mt-1 font-medium">{problemDescription.length}/500 characters</p>
+                  </div>
+
+                  {/* Auto-fetched location */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-purple-500" />
+                      Your Location
+                    </label>
+                    <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border text-sm font-medium transition-all
+                      ${locationError ? 'border-red-200 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                      {locationLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-slate-400 shrink-0" />
+                          <span className="text-slate-500">Detecting your location...</span>
+                        </>
+                      ) : locationError ? (
+                        <>
+                          <span className="flex-1">{locationError}</span>
+                          <button onClick={fetchLocation} className="text-xs font-bold text-purple-600 hover:text-purple-700 shrink-0">
+                            Retry
+                          </button>
+                        </>
+                      ) : location ? (
+                        <>
+                          <MapPin className="w-4 h-4 text-purple-500 shrink-0" />
+                          <span className="flex-1 truncate">{location.address}</span>
+                          <button onClick={fetchLocation} className="text-xs font-bold text-purple-600 hover:text-purple-700 shrink-0">
+                            Refresh
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="flex-1 text-slate-500">Location not shared yet</span>
+                          <button onClick={fetchLocation} className="text-xs font-bold text-purple-600 hover:text-purple-700 shrink-0">
+                            Share Location
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                {/* Book Button */}
+                {bookingStatus === 'IDLE' && (
+                  <div className="pt-2">
+                    <button
+                      onClick={handleBookService}
+                      disabled={!problemDescription.trim() || locationLoading}
+                      className="w-full md:w-auto px-10 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-bold shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                      Find Worker Instantly
+                    </button>
+                    {!problemDescription.trim() && (
+                      <p className="text-xs text-slate-400 font-medium mt-2">Please describe your problem to continue</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'bookings' && (
+          <div className="p-6 md:p-10 max-w-4xl mx-auto w-full">
+            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-8">Past Bookings</h2>
+            <div className="space-y-4">
+              {pastBookings.length === 0 ? (
+                <div className="text-center py-10 bg-white rounded-3xl border border-slate-200">
+                  <p className="text-slate-500 font-medium">No past bookings found.</p>
+                </div>
+              ) : (
+                pastBookings.map(b => (
+                  <div key={b.id} className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <p className="font-bold text-slate-800 text-lg">{b.serviceType}</p>
+                      <p className="text-slate-500 text-sm">{b.date}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${b.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                        {b.status}
+                      </span>
+                      <span className="font-bold text-slate-900">₹{b.amount}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {activeTab === 'profile' && (
+          <div className="p-6 md:p-10 max-w-4xl mx-auto w-full">
+            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-8">Profile & Billing</h2>
+            <div className="bg-white rounded-3xl border border-slate-200 p-8">
+              <div className="flex items-center gap-6 mb-8 border-b border-slate-100 pb-8">
+                <div className="w-20 h-20 rounded-full bg-slate-200 flex items-center justify-center text-3xl font-bold text-slate-500">
+                  {user?.name ? user.name[0].toUpperCase() : '?'}
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-800">{user?.name || 'Customer Name'}</h3>
+                  <p className="text-slate-500">{user?.phone}</p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <h4 className="font-bold text-slate-700">Billing Information</h4>
+                <p className="text-sm text-slate-500">Your billing is managed per-request. No active subscriptions.</p>
+                <button className="bg-slate-100 hover:bg-slate-200 text-slate-800 px-6 py-2 rounded-xl font-bold text-sm transition-colors">
+                  Add Payment Method
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Right Panel: Active Request */}
-      <aside className="w-full md:w-96 bg-white border-l border-slate-200 flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.02)] z-40 relative">
+      <aside className={`w-full md:w-96 bg-white border-l border-slate-200 flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.02)] z-40 relative ${activeTab === 'dashboard' ? 'flex' : 'hidden md:flex'}`}>
         <header className="h-16 flex items-center px-6 border-b border-slate-100 bg-white">
           <h2 className="font-bold text-slate-800 tracking-tight">Active Request</h2>
         </header>
