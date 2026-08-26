@@ -144,16 +144,16 @@ export default function WorkerApp() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-zinc-900 flex font-sans">
+    <div className="min-h-screen bg-card text-foreground flex font-sans">
       
       {/* 1. Left Sidebar Navigation */}
-      <aside className="w-64 bg-zinc-50 border-r border-zinc-200 hidden md:flex flex-col shrink-0">
-        <div className="h-16 flex items-center px-6 border-b border-zinc-200">
+      <aside className="w-64 bg-background border-r border-border hidden md:flex flex-col shrink-0">
+        <div className="h-16 flex items-center px-6 border-b border-border">
           <Link href="/" className="flex items-center gap-2 cursor-pointer">
             <div className="w-8 h-8 bg-zinc-900 flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
             </div>
-            <span className="font-extrabold text-xl tracking-tight text-zinc-900 uppercase">Worker</span>
+            <span className="font-extrabold text-xl tracking-tight text-foreground uppercase">Worker</span>
           </Link>
         </div>
         
@@ -167,7 +167,7 @@ export default function WorkerApp() {
             <button 
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors ${activeTab === tab.id ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors ${activeTab === tab.id ? 'bg-zinc-900 text-white' : 'text-muted-foreground hover:bg-zinc-200 hover:text-foreground'}`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon}></path></svg>
               {tab.label}
@@ -175,22 +175,22 @@ export default function WorkerApp() {
           ))}
         </nav>
         
-        <div className="p-4 border-t border-zinc-200">
-          <div className="bg-white p-4 border border-zinc-200">
-            <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider mb-2">Status</p>
+        <div className="p-4 border-t border-border">
+          <div className="bg-card p-4 border border-border">
+            <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-2">Status</p>
             <div className="flex items-center gap-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${jobStatus === 'IDLE' ? 'bg-green-500 animate-pulse' : 'bg-black'}`}></span>
-              <span className="text-sm font-bold text-zinc-900">{jobStatus === 'IDLE' ? 'Available for Jobs' : 'On Active Job'}</span>
+              <span className={`w-2.5 h-2.5 rounded-full ${jobStatus === 'IDLE' ? 'bg-green-500 animate-pulse' : 'bg-primary text-primary-foreground'}`}></span>
+              <span className="text-sm font-bold text-foreground">{jobStatus === 'IDLE' ? 'Available for Jobs' : 'On Active Job'}</span>
             </div>
           </div>
-          <button onClick={() => { logout(); router.push('/'); }} className="w-full mt-4 text-xs font-bold text-zinc-500 uppercase hover:text-zinc-900">Sign Out</button>
+          <button onClick={() => { logout(); router.push('/'); }} className="w-full mt-4 text-xs font-bold text-muted-foreground uppercase hover:text-foreground">Sign Out</button>
         </div>
       </aside>
       
       {/* 2. Main Dashboard Area */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-white">
-        <header className="h-16 flex items-center justify-between px-8 border-b border-zinc-200 bg-white shrink-0">
-          <h1 className="text-xl font-extrabold text-zinc-900 tracking-tight">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-card">
+        <header className="h-16 flex items-center justify-between px-8 border-b border-border bg-card shrink-0">
+          <h1 className="text-xl font-extrabold text-foreground tracking-tight">
             {activeTab === 'JOBS' ? 'Dispatch Radar' : activeTab === 'BILLING' ? 'Past Billing' : activeTab === 'WELFARE' ? 'Cooperative Welfare' : 'Professional Profile'}
           </h1>
           {jobStatus !== 'IDLE' && jobStatus !== 'COMPLETED' && (
@@ -220,15 +220,15 @@ export default function WorkerApp() {
                 
                 {jobStatus === 'IDLE' && (
                   <>
-                    <section className="bg-zinc-50 p-6 border-2 border-zinc-200 rounded-3xl shadow-sm">
-                      <h2 className="font-extrabold text-zinc-900 mb-4 flex items-center gap-2">
+                    <section className="bg-background p-6 border border-border rounded-3xl shadow-sm">
+                      <h2 className="font-extrabold text-foreground mb-4 flex items-center gap-2">
                         <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                         Radar Settings
                       </h2>
                       <div className="mb-6">
-                        <div className="flex justify-between text-xs font-bold uppercase text-zinc-500 mb-2">
+                        <div className="flex justify-between text-xs font-bold uppercase text-muted-foreground mb-2">
                           <span>Search Radius</span>
-                          <span className="text-zinc-900">{radius} km</span>
+                          <span className="text-foreground">{radius} km</span>
                         </div>
                         <input 
                           type="range" 
@@ -238,37 +238,37 @@ export default function WorkerApp() {
                           className="w-full accent-black"
                         />
                       </div>
-                      <div className="bg-white p-4 border-2 border-zinc-200 rounded-xl text-center text-xs font-bold uppercase text-zinc-500 flex items-center justify-center gap-3 shadow-sm">
+                      <div className="bg-card p-4 border border-border rounded-xl text-center text-xs font-bold uppercase text-muted-foreground flex items-center justify-center gap-3 shadow-sm">
                         <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
                         Listening for broadcasts...
                       </div>
                     </section>
 
                     <section className="flex-1 overflow-y-auto">
-                      <h3 className="font-bold text-zinc-500 mb-4 uppercase tracking-wider text-xs">Available Jobs ({availableJobs.length})</h3>
+                      <h3 className="font-bold text-muted-foreground mb-4 uppercase tracking-wider text-xs">Available Jobs ({availableJobs.length})</h3>
                       <div className="space-y-4">
                         {availableJobs.length === 0 ? (
-                          <div className="bg-zinc-50 p-8 border-2 border-zinc-200 rounded-2xl text-center text-zinc-500 text-sm font-medium">
+                          <div className="bg-background p-8 border border-border rounded-2xl text-center text-muted-foreground text-sm font-medium">
                             No jobs currently available in your area.
                           </div>
                         ) : (
                           availableJobs.map((job, idx) => (
-                            <div key={job.booking_id || idx} className="bg-white p-5 border-2 border-zinc-200 rounded-2xl hover:border-black transition-colors shadow-sm hover:shadow-md">
+                            <div key={job.booking_id || idx} className="bg-card p-5 border border-border rounded-2xl hover:border-border transition-colors shadow-sm hover:shadow-md">
                               <div className="flex justify-between items-start mb-4">
                                 <div>
-                                  <h4 className="font-bold text-zinc-900 text-lg">{job.service_type || 'Service'} Request</h4>
-                                  <p className="text-sm text-zinc-500 mt-1">Est. Payout: <span className="text-black font-extrabold">₹{job.estimated_wage}</span></p>
+                                  <h4 className="font-bold text-foreground text-lg">{job.service_type || 'Service'} Request</h4>
+                                  <p className="text-sm text-muted-foreground mt-1">Est. Payout: <span className="text-black font-extrabold">₹{job.estimated_wage}</span></p>
                                 </div>
-                                <span className="bg-black text-white px-2 py-1 text-[10px] font-bold uppercase tracking-widest">
+                                <span className="bg-primary text-primary-foreground text-white px-2 py-1 text-[10px] font-bold uppercase tracking-widest">
                                   New
                                 </span>
                               </div>
-                              <div className="bg-zinc-50 p-3 mb-4 border-2 border-zinc-100 rounded-lg text-xs text-zinc-700">
+                              <div className="bg-background p-3 mb-4 border border-zinc-100 rounded-lg text-xs text-zinc-700">
                                 {job.custom_prompt_text || "No description provided."}
                               </div>
                               <button 
                                 onClick={() => acceptGig(job)}
-                                className="w-full bg-zinc-900 hover:bg-black text-white font-bold py-3 rounded-xl transition-colors text-sm uppercase tracking-wider shadow-sm"
+                                className="w-full bg-zinc-900 hover:bg-primary text-primary-foreground text-white font-bold py-3 rounded-xl transition-colors text-sm uppercase tracking-wider shadow-sm"
                               >
                                 Accept Job
                               </button>
@@ -281,24 +281,24 @@ export default function WorkerApp() {
                 )}
 
                 {(jobStatus !== 'IDLE' && jobStatus !== 'COMPLETED') && (
-                  <div className="bg-white p-6 border-2 border-black rounded-3xl shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+                  <div className="bg-card p-6 border border-border rounded-3xl shadow-[4px_4px_0px_rgba(0,0,0,1)]">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="w-10 h-10 bg-black text-white flex items-center justify-center">
+                      <div className="w-10 h-10 bg-primary text-primary-foreground text-white flex items-center justify-center">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                       </div>
                       <div>
-                        <h2 className="font-extrabold text-zinc-900">{activeJobDetails?.service_type || 'Service'} Request</h2>
-                        <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Accepted Job</p>
+                        <h2 className="font-extrabold text-foreground">{activeJobDetails?.service_type || 'Service'} Request</h2>
+                        <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Accepted Job</p>
                       </div>
                     </div>
                     
-                    <div className="bg-zinc-50 p-4 border-2 border-zinc-200 rounded-xl mb-6 shadow-sm">
-                      <div className="flex justify-between text-sm mb-2"><span className="text-zinc-500">Distance</span><span className="text-zinc-900 font-bold">Calculating...</span></div>
-                      <div className="flex justify-between text-sm"><span className="text-zinc-500">Est. Payout</span><span className="text-black font-extrabold">₹{activeJobDetails?.estimated_wage || '450'}</span></div>
+                    <div className="bg-background p-4 border border-border rounded-xl mb-6 shadow-sm">
+                      <div className="flex justify-between text-sm mb-2"><span className="text-muted-foreground">Distance</span><span className="text-foreground font-bold">Calculating...</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-muted-foreground">Est. Payout</span><span className="text-black font-extrabold">₹{activeJobDetails?.estimated_wage || '450'}</span></div>
                     </div>
 
                     {jobStatus === 'ACCEPTED' && (
-                      <button onClick={() => setJobStatus('IN_PROGRESS')} className="w-full bg-black py-4 text-xs font-bold text-white uppercase tracking-wider transition-colors rounded-xl shadow-md hover:bg-zinc-800">
+                      <button onClick={() => setJobStatus('IN_PROGRESS')} className="w-full bg-primary text-primary-foreground py-4 text-xs font-bold text-white uppercase tracking-wider transition-colors rounded-xl shadow-md hover:bg-zinc-800">
                         Arrived & Start Job
                       </button>
                     )}
@@ -307,11 +307,11 @@ export default function WorkerApp() {
               </div>
 
               {/* Right Panel: Execution Workflow */}
-              <div className="w-full lg:w-2/3 bg-zinc-50 border-2 border-zinc-200 rounded-3xl p-8 flex flex-col relative overflow-hidden shadow-sm">
+              <div className="w-full lg:w-2/3 bg-background border border-border rounded-3xl p-8 flex flex-col relative overflow-hidden shadow-sm">
                 
                 {jobStatus === 'IDLE' && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center text-zinc-400">
+                    <div className="text-center text-muted-foreground/70">
                       <svg className="w-24 h-24 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
                       <p className="text-lg font-bold">Map View Active</p>
                       <p className="text-sm">Select a job from the Radar to begin.</p>
@@ -321,51 +321,51 @@ export default function WorkerApp() {
 
                 {jobStatus === 'IN_PROGRESS' && (
                   <div className="max-w-2xl mx-auto w-full space-y-6 animate-in slide-in-from-bottom-4">
-                    <h2 className="text-2xl font-extrabold text-zinc-900 mb-6">Job Execution Protocol</h2>
+                    <h2 className="text-2xl font-extrabold text-foreground mb-6">Job Execution Protocol</h2>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <section className="bg-white p-6 border border-zinc-200">
-                        <h3 className="font-bold text-zinc-900 mb-4 text-sm uppercase tracking-wider">1. AI Audit</h3>
+                      <section className="bg-card p-6 border border-border">
+                        <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider">1. AI Audit</h3>
                         <div className="space-y-3">
                           <button 
                             onClick={() => setBeforeImage("captured")}
-                            className={`w-full py-4 border-2 border-dashed flex flex-col items-center justify-center font-bold text-sm transition-all ${beforeImage ? 'border-black bg-black text-white' : 'border-zinc-300 text-zinc-500 hover:bg-zinc-50'}`}
+                            className={`w-full py-4 border border-dashed flex flex-col items-center justify-center font-bold text-sm transition-all ${beforeImage ? 'border-border bg-primary text-primary-foreground text-white' : 'border-zinc-300 text-muted-foreground hover:bg-background'}`}
                           >
                             {beforeImage ? "Before: Uploaded" : "Capture Before Photo"}
                           </button>
                           <button 
                             onClick={() => setAfterImage("captured")}
-                            className={`w-full py-4 border-2 border-dashed flex flex-col items-center justify-center font-bold text-sm transition-all ${afterImage ? 'border-black bg-black text-white' : 'border-zinc-300 text-zinc-500 hover:bg-zinc-50'}`}
+                            className={`w-full py-4 border border-dashed flex flex-col items-center justify-center font-bold text-sm transition-all ${afterImage ? 'border-border bg-primary text-primary-foreground text-white' : 'border-zinc-300 text-muted-foreground hover:bg-background'}`}
                           >
                             {afterImage ? "After: Uploaded" : "Capture After Photo"}
                           </button>
                         </div>
                       </section>
 
-                      <section className="bg-white p-6 border border-zinc-200 flex flex-col">
-                        <h3 className="font-bold text-zinc-900 mb-4 text-sm uppercase tracking-wider">2. Hardware Receipt</h3>
+                      <section className="bg-card p-6 border border-border flex flex-col">
+                        <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider">2. Hardware Receipt</h3>
                         <div className="flex-1 flex flex-col justify-center">
                           {!receiptImage ? (
-                            <button onClick={() => { setReceiptImage("uploaded"); simulateOCR(); }} className="w-full py-8 bg-zinc-50 flex flex-col items-center justify-center text-zinc-900 font-bold border border-zinc-200 hover:border-black transition-colors">
+                            <button onClick={() => { setReceiptImage("uploaded"); simulateOCR(); }} className="w-full py-8 bg-background flex flex-col items-center justify-center text-foreground font-bold border border-border hover:border-border transition-colors">
                               <svg className="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                               Scan Bill via OCR
                             </button>
                           ) : (
-                            <div className="bg-zinc-50 h-full p-4 border border-zinc-200 text-sm">
+                            <div className="bg-background h-full p-4 border border-border text-sm">
                               {ocrData ? (
                                 <div className="h-full flex flex-col justify-between">
                                   <div>
-                                    <div className="flex justify-between text-zinc-500 text-xs mb-3 uppercase tracking-wider"><span>Item</span><span>Price</span></div>
+                                    <div className="flex justify-between text-muted-foreground text-xs mb-3 uppercase tracking-wider"><span>Item</span><span>Price</span></div>
                                     {ocrData.items?.map((i: any, idx: number) => (
-                                      <div key={idx} className="flex justify-between font-mono text-zinc-900 mb-1"><span>{i.name}</span><span>₹{i.price}</span></div>
+                                      <div key={idx} className="flex justify-between font-mono text-foreground mb-1"><span>{i.name}</span><span>₹{i.price}</span></div>
                                     ))}
                                   </div>
-                                  <div className="border-t border-zinc-200 pt-3 flex justify-between font-bold text-zinc-900">
+                                  <div className="border-t border-border pt-3 flex justify-between font-bold text-foreground">
                                     <span>Total Added</span><span>₹{ocrData.total}</span>
                                   </div>
                                 </div>
                               ) : (
-                                <div className="h-full flex items-center justify-center text-zinc-500 text-xs font-bold uppercase tracking-wider animate-pulse">Running AI OCR...</div>
+                                <div className="h-full flex items-center justify-center text-muted-foreground text-xs font-bold uppercase tracking-wider animate-pulse">Running AI OCR...</div>
                               )}
                             </div>
                           )}
@@ -373,24 +373,24 @@ export default function WorkerApp() {
                       </section>
                     </div>
 
-                    <section className="bg-white p-6 border border-zinc-200">
+                    <section className="bg-card p-6 border border-border">
                       <div className="mb-4">
-                        <h3 className="font-bold text-zinc-900 text-sm uppercase tracking-wider">3. Mutual Closure</h3>
-                        <p className="text-xs text-zinc-500 font-medium">Ask the customer for their 6-digit closure OTP.</p>
+                        <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">3. Mutual Closure</h3>
+                        <p className="text-xs text-muted-foreground font-medium">Ask the customer for their 6-digit closure OTP.</p>
                       </div>
                       <div className="flex gap-4">
                         <input
                           type="text"
                           maxLength={6}
                           placeholder="0 0 0 0 0 0"
-                          className="flex-1 bg-zinc-50 border border-zinc-200 px-6 py-4 text-center tracking-[0.5em] font-mono text-2xl text-zinc-900 focus:border-black focus:outline-none transition-colors"
+                          className="flex-1 bg-background border border-border px-6 py-4 text-center tracking-[0.5em] font-mono text-2xl text-foreground focus:border-border focus:outline-none transition-colors"
                           value={otp}
                           onChange={(e) => setOtp(e.target.value)}
                         />
                         <button 
                           onClick={verifyOTP}
                           disabled={otp.length !== 6 || !beforeImage || !afterImage}
-                          className="px-8 bg-black disabled:bg-zinc-200 disabled:text-zinc-400 text-white font-bold transition-all text-sm uppercase tracking-wider hover:bg-zinc-800"
+                          className="px-8 bg-primary text-primary-foreground disabled:bg-zinc-200 disabled:text-muted-foreground/70 text-white font-bold transition-all text-sm uppercase tracking-wider hover:bg-zinc-800"
                         >
                           Verify & Close
                         </button>
@@ -400,20 +400,20 @@ export default function WorkerApp() {
                 )}
 
                 {jobStatus === 'COMPLETED' && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/90 backdrop-blur-sm z-10 p-4">
-                    <div className="bg-white border-2 border-black p-10 text-center max-w-md w-full shadow-[8px_8px_0px_rgba(0,0,0,1)] animate-in zoom-in-95">
-                      <h2 className="text-3xl font-extrabold text-zinc-900 mb-2">Job Completed!</h2>
-                      <p className="text-zinc-500 text-sm mb-8 font-medium">Funds have been added to your escrow.</p>
+                  <div className="absolute inset-0 flex items-center justify-center bg-card/90 backdrop-blur-sm z-10 p-4">
+                    <div className="bg-card border border-border p-10 text-center max-w-md w-full shadow-[8px_8px_0px_rgba(0,0,0,1)] animate-in zoom-in-95">
+                      <h2 className="text-3xl font-extrabold text-foreground mb-2">Job Completed!</h2>
+                      <p className="text-muted-foreground text-sm mb-8 font-medium">Funds have been added to your escrow.</p>
                       
-                      <div className="bg-zinc-50 p-6 text-sm text-zinc-700 font-mono text-left mb-8 border border-zinc-200">
+                      <div className="bg-background p-6 text-sm text-zinc-700 font-mono text-left mb-8 border border-border">
                         <div className="flex justify-between mb-3"><span>Base Wage:</span><span className="font-bold text-black">₹{activeJobDetails?.estimated_wage || '450.00'}</span></div>
-                        <div className="flex justify-between mb-4 text-zinc-500"><span>Welfare Deduction:</span><span>-₹22.50</span></div>
-                        <div className="border-t border-zinc-200 pt-4 flex justify-between font-extrabold text-lg text-black"><span>Net Settlement:</span><span>₹{(parseFloat(activeJobDetails?.estimated_wage || '450') - 22.50).toFixed(2)}</span></div>
+                        <div className="flex justify-between mb-4 text-muted-foreground"><span>Welfare Deduction:</span><span>-₹22.50</span></div>
+                        <div className="border-t border-border pt-4 flex justify-between font-extrabold text-lg text-black"><span>Net Settlement:</span><span>₹{(parseFloat(activeJobDetails?.estimated_wage || '450') - 22.50).toFixed(2)}</span></div>
                       </div>
                       
                       <button 
                         onClick={resetJobState} 
-                        className="w-full bg-black py-4 font-bold text-white uppercase tracking-wider transition-colors hover:bg-zinc-800"
+                        className="w-full bg-primary text-primary-foreground py-4 font-bold text-white uppercase tracking-wider transition-colors hover:bg-zinc-800"
                       >
                         Return to Radar
                       </button>
@@ -426,22 +426,22 @@ export default function WorkerApp() {
 
           {activeTab === 'BILLING' && (
             <div className="max-w-4xl">
-              <h2 className="text-3xl font-extrabold text-zinc-900 mb-8">Past Billing</h2>
+              <h2 className="text-3xl font-extrabold text-foreground mb-8">Past Billing</h2>
               {billing.length === 0 ? (
-                <div className="bg-zinc-50 border border-zinc-200 py-16 text-center">
-                  <p className="text-zinc-500 text-sm font-medium">No past bookings found.</p>
+                <div className="bg-background border border-border py-16 text-center">
+                  <p className="text-muted-foreground text-sm font-medium">No past bookings found.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {billing.map((b: any) => (
-                    <div key={b.id} className="bg-white p-6 border border-zinc-200 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-black transition-colors">
+                    <div key={b.id} className="bg-card p-6 border border-border flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-border transition-colors">
                       <div>
-                        <h3 className="font-bold text-zinc-900 text-lg">{b.serviceType}</h3>
-                        <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mt-1">Completed: {new Date(b.completedAt).toLocaleString()}</p>
+                        <h3 className="font-bold text-foreground text-lg">{b.serviceType}</h3>
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-1">Completed: {new Date(b.completedAt).toLocaleString()}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-extrabold text-zinc-900">₹{b.totalEarnings}</p>
-                        <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Base: ₹{b.baseWage} | Mat: ₹{b.materialCost}</p>
+                        <p className="text-2xl font-extrabold text-foreground">₹{b.totalEarnings}</p>
+                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Base: ₹{b.baseWage} | Mat: ₹{b.materialCost}</p>
                       </div>
                     </div>
                   ))}
@@ -452,26 +452,33 @@ export default function WorkerApp() {
 
           {activeTab === 'WELFARE' && (
             <div className="max-w-4xl">
-              <h2 className="text-3xl font-extrabold text-zinc-900 mb-8">Welfare & Insurance</h2>
+              <h2 className="text-3xl font-extrabold text-foreground mb-8">Welfare & Insurance</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-black text-white p-8 border border-zinc-800 shadow-[8px_8px_0px_rgba(228,228,231,1)]">
-                  <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">Cooperative Health Insurance</p>
-                  <h3 className="text-4xl font-extrabold mb-4">Active</h3>
-                  <p className="text-lg text-zinc-300 font-medium">Cover: ₹2,00,000</p>
-                  <p className="text-sm text-zinc-500 mt-2">Valid until: Dec 2026</p>
-                  <button className="mt-8 bg-white text-black font-bold text-xs uppercase tracking-wider py-3 px-6 hover:bg-zinc-200 transition-colors">
+                <div className="bg-card p-8 border border-primary/30 shadow-sm rounded-2xl relative overflow-hidden">
+                  <div className="absolute -right-6 -top-6 bg-primary/10 w-24 h-24 rounded-full blur-xl"></div>
+                  <p className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-2">Cooperative Health Insurance</p>
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="flex h-3 w-3 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                    </span>
+                    <h3 className="text-4xl font-extrabold text-foreground">Active</h3>
+                  </div>
+                  <p className="text-lg text-foreground font-medium">Cover: ₹2,00,000</p>
+                  <p className="text-sm text-muted-foreground mt-2 mb-8">Valid until: Dec 2026</p>
+                  <button className="bg-primary/10 text-primary font-bold text-xs uppercase tracking-wider py-3 px-6 rounded-xl hover:bg-primary/20 transition-colors w-max">
                     View Policy Card
                   </button>
                 </div>
                 <div className="grid grid-rows-2 gap-6">
-                  <div className="bg-white p-6 border border-zinc-200 flex flex-col justify-center shadow-[4px_4px_0px_rgba(228,228,231,1)]">
-                    <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-2">Provident Fund (Matched)</p>
-                    <h3 className="text-3xl font-extrabold text-zinc-900">₹14,500<span className="text-lg text-zinc-400">.00</span></h3>
+                  <div className="bg-card p-6 border border-border flex flex-col justify-center shadow-sm rounded-2xl">
+                    <p className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-2">Provident Fund (Matched)</p>
+                    <h3 className="text-3xl font-extrabold text-foreground">₹14,500<span className="text-lg text-muted-foreground/70">.00</span></h3>
                   </div>
-                  <div className="bg-white p-6 border border-zinc-200 flex flex-col justify-center shadow-[4px_4px_0px_rgba(228,228,231,1)]">
-                    <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-2">Platform Dividend Share</p>
-                    <h3 className="text-3xl font-extrabold text-zinc-900">₹1,250<span className="text-lg text-zinc-400">.00</span></h3>
-                    <p className="text-xs font-medium text-zinc-500 mt-1">To be credited Q4 2026</p>
+                  <div className="bg-card p-6 border border-border flex flex-col justify-center shadow-sm rounded-2xl">
+                    <p className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-2">Platform Dividend Share</p>
+                    <h3 className="text-3xl font-extrabold text-foreground">₹1,250<span className="text-lg text-muted-foreground/70">.00</span></h3>
+                    <p className="text-xs font-medium text-muted-foreground mt-1">To be credited Q4 2026</p>
                   </div>
                 </div>
               </div>
@@ -480,56 +487,56 @@ export default function WorkerApp() {
 
           {activeTab === 'PROFILE' && (
             <div className="max-w-4xl">
-              <div className="flex items-center gap-8 mb-10 pb-10 border-b border-zinc-200">
-                <div className="w-32 h-32 bg-zinc-100 border border-zinc-200 flex items-center justify-center text-5xl overflow-hidden shadow-[8px_8px_0px_rgba(228,228,231,1)]">
+              <div className="flex items-center gap-8 mb-10 pb-10 border-b border-border">
+                <div className="w-32 h-32 bg-muted border border-border flex items-center justify-center text-5xl overflow-hidden shadow-sm rounded-2xl">
                   {profile?.photoUrl ? (
                     <img src={`http://localhost:8080${profile.photoUrl}`} alt="Worker Photo" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="font-extrabold text-zinc-900">{user?.name?.[0] || 'W'}</span>
+                    <span className="font-extrabold text-foreground">{user?.name?.[0] || 'W'}</span>
                   )}
                 </div>
                 <div>
-                  <h2 className="text-4xl font-extrabold text-zinc-900 mb-2">{profile?.name || user?.name || "Professional"}</h2>
-                  <p className="text-zinc-900 text-lg font-bold flex items-center gap-2">
+                  <h2 className="text-4xl font-extrabold text-foreground mb-2">{profile?.name || user?.name || "Professional"}</h2>
+                  <p className="text-foreground text-lg font-bold flex items-center gap-2">
                     ★ {profile?.rating?.toFixed(1) || "4.9"} / 5.0 Rating
                   </p>
-                  <p className="text-zinc-500 text-sm font-medium uppercase tracking-wider mt-2">{profile?.totalJobs || 0} Total Jobs Completed</p>
+                  <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mt-2">{profile?.totalJobs || 0} Total Jobs Completed</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <section className="bg-white p-8 border border-zinc-200 shadow-[4px_4px_0px_rgba(228,228,231,1)]">
-                  <h3 className="font-extrabold text-zinc-900 mb-6 text-xl">Verified Credentials</h3>
+                <section className="bg-card p-8 border border-border shadow-sm rounded-2xl">
+                  <h3 className="font-extrabold text-foreground mb-6 text-xl">Verified Credentials</h3>
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center bg-zinc-50 p-4 border border-zinc-200">
+                    <div className="flex justify-between items-center bg-background p-4 border border-border">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-black text-white flex items-center justify-center">
+                        <div className="w-10 h-10 bg-primary text-primary-foreground text-white flex items-center justify-center">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         </div>
                         <div>
-                          <h4 className="font-bold text-zinc-900">Identity Verified</h4>
-                          <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Aadhar / KYC</p>
+                          <h4 className="font-bold text-foreground">Identity Verified</h4>
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Aadhar / KYC</p>
                         </div>
                       </div>
-                      <span className="bg-black text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1">Verified</span>
+                      <span className="bg-primary text-primary-foreground text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1">Verified</span>
                     </div>
                     
-                    <div className="flex justify-between items-center bg-zinc-50 p-4 border border-zinc-200">
+                    <div className="flex justify-between items-center bg-background p-4 border border-border">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-black text-white flex items-center justify-center">
+                        <div className="w-10 h-10 bg-primary text-primary-foreground text-white flex items-center justify-center">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                         </div>
                         <div>
-                          <h4 className="font-bold text-zinc-900">Trade Certified</h4>
-                          <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">ITI / NSQF</p>
+                          <h4 className="font-bold text-foreground">Trade Certified</h4>
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">ITI / NSQF</p>
                         </div>
                       </div>
-                      <span className="bg-black text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1">Verified</span>
+                      <span className="bg-primary text-primary-foreground text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1">Verified</span>
                     </div>
                   </div>
                   
-                  <div className="mt-8 pt-6 border-t border-zinc-200">
-                    <button className="w-full border-2 border-dashed border-zinc-300 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 hover:border-black font-bold text-xs uppercase tracking-wider py-4 transition-all">
+                  <div className="mt-8 pt-6 border-t border-border">
+                    <button className="w-full border border-dashed border-zinc-300 text-muted-foreground hover:bg-background hover:text-foreground hover:border-border font-bold text-xs uppercase tracking-wider py-4 transition-all">
                       + Upload New Credential / License
                     </button>
                   </div>

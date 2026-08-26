@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.*;
+import java.util.HashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -29,19 +30,33 @@ public class BookingService {
     private final SocketBroadcaster broadcaster;
 
     // Base wage lookup per service type (GOI rates, simplified)
-    private static final Map<String, BigDecimal> BASE_WAGES = Map.of(
-            "PLUMBER",      BigDecimal.valueOf(450.00),
-            "ELECTRICIAN",  BigDecimal.valueOf(500.00),
-            "CARPENTER",    BigDecimal.valueOf(420.00),
-            "PAINTER",      BigDecimal.valueOf(380.00),
-            "OTHER",        BigDecimal.valueOf(350.00)
-    );
+    private static final Map<String, BigDecimal> BASE_WAGES = new HashMap<>(Map.ofEntries(
+            Map.entry("PLUMBER",          BigDecimal.valueOf(450.00)),
+            Map.entry("ELECTRICIAN",      BigDecimal.valueOf(500.00)),
+            Map.entry("CARPENTER",        BigDecimal.valueOf(420.00)),
+            Map.entry("PAINTER",          BigDecimal.valueOf(380.00)),
+            Map.entry("AC_REPAIR",        BigDecimal.valueOf(600.00)),
+            Map.entry("CLEANING",         BigDecimal.valueOf(350.00)),
+            Map.entry("PEST_CONTROL",     BigDecimal.valueOf(400.00)),
+            Map.entry("CAR_MECHANIC",     BigDecimal.valueOf(550.00)),
+            Map.entry("APPLIANCE",        BigDecimal.valueOf(480.00)),
+            Map.entry("ROOFING",          BigDecimal.valueOf(500.00)),
+            Map.entry("HANDYMAN",         BigDecimal.valueOf(380.00)),
+            Map.entry("LAPTOP_REPAIR",    BigDecimal.valueOf(450.00)),
+            Map.entry("WASHING_MACHINE",  BigDecimal.valueOf(420.00)),
+            Map.entry("REFRIGERATOR",     BigDecimal.valueOf(450.00)),
+            Map.entry("SOFA_CLEANING",    BigDecimal.valueOf(380.00)),
+            Map.entry("WATER_PURIFIER",   BigDecimal.valueOf(350.00)),
+            Map.entry("GEYSER_REPAIR",    BigDecimal.valueOf(400.00)),
+            Map.entry("BATHROOM_CLEANING",BigDecimal.valueOf(320.00)),
+            Map.entry("OTHER",            BigDecimal.valueOf(350.00))
+    ));
 
     /**
      * POST /api/v1/bookings
      */
     @Transactional
-    public Map<String, Object> createBooking(User customer, CreateBookingRequest req) {
+    public Map<String, Object> createBooking(User customer, CreateBookingRequest req, String photoUrl) {
         String otp     = otpHashUtil.generateOtp();
         String otpHash = otpHashUtil.hashOtp(otp);
 
@@ -63,6 +78,7 @@ public class BookingService {
                 .longitude(BigDecimal.valueOf(req.getLongitude()))
                 .pincode(req.getPincode())
                 .addressText(req.getAddressText())
+                .issuePhotoUrl(photoUrl)
                 .build();
 
         Booking saved = bookingRepository.save(booking);
@@ -109,10 +125,12 @@ public class BookingService {
         if (booking.getWorker() != null) {
             Worker w = booking.getWorker();
             result.put("worker", Map.of(
-                    "name",           w.getUser().getName() != null ? w.getUser().getName() : "",
-                    "phone",          w.getUser().getPhone(),
-                    "rating",         w.getRating(),
-                    "ncct_certified", w.getNcctCertified()
+                    "name",             w.getUser().getName() != null ? w.getUser().getName() : "",
+                    "phone",            w.getUser().getPhone(),
+                    "rating",           w.getRating(),
+                    "aadhaar_verified", w.getAadhaarVerified(),
+                    "iti_certified",    w.getItiCertified(),
+                    "nsqf_level",       w.getNsqfLevel() != null ? w.getNsqfLevel() : ""
             ));
         } else {
             result.put("worker", null);

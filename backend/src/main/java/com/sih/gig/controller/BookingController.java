@@ -12,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import com.sih.gig.service.FileStorageService;
 
 import java.util.UUID;
 
@@ -21,16 +23,35 @@ import java.util.UUID;
 public class BookingController {
 
     private final BookingService bookingService;
+    private final FileStorageService fileStorageService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
-    /** POST /api/v1/bookings */
-    @PostMapping
-    public ResponseEntity<ApiResponse<?>> createBooking(
-            @Valid @RequestBody CreateBookingRequest req,
+    /** POST /api/v1/bookings (with optional photo - multipart) */
+    @PostMapping(consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<?>> createBookingMultipart(
+            @RequestPart("booking") String bookingJson,
+            @RequestPart(value = "photo", required = false) MultipartFile photo,
+            Authentication auth) throws Exception {
+        User currentUser = (User) auth.getPrincipal();
+        CreateBookingRequest req = objectMapper.readValue(bookingJson, CreateBookingRequest.class);
+        String photoUrl = null;
+        if (photo != null && !photo.isEmpty()) {
+            photoUrl = fileStorageService.storeFile(photo);
+        }
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.ok(bookingService.createBooking(currentUser, req, photoUrl)));
+    }
+
+    /** POST /api/v1/bookings (no photo - JSON) */
+    @PostMapping(consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<?>> createBookingJson(
+            @RequestBody @Valid CreateBookingRequest req,
             Authentication auth) {
         User currentUser = (User) auth.getPrincipal();
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.ok(bookingService.createBooking(currentUser, req)));
+                .body(ApiResponse.ok(bookingService.createBooking(currentUser, req, null)));
     }
 
     /** GET /api/v1/bookings/:id */

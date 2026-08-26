@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.Map;
 import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -59,7 +62,7 @@ public class UserController {
                     );
                     
                     if (Boolean.TRUE.equals(aiResult.get("verified"))) {
-                        worker.setNcctCertified(true);
+                        worker.setItiCertified(true);
                         worker.setTier((String) aiResult.getOrDefault("recommended_tier", "SKILLED"));
                         worker.setApprovalStatus("APPROVED");
                     } else {
@@ -74,6 +77,40 @@ public class UserController {
         }
 
         return ResponseEntity.ok(Map.of("message", "Profile completed successfully", "user", user));
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(
+            @AuthenticationPrincipal User user,
+            @RequestBody Map<String, String> body) {
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Unauthorized"));
+        }
+        
+        if (body.containsKey("name")) {
+            user.setName(body.get("name"));
+        }
+        if (body.containsKey("phone")) {
+            user.setPhone(body.get("phone"));
+        }
+        userRepository.save(user);
+        return ResponseEntity.ok(Map.of("message", "Profile updated", "user", user));
+    }
+
+    @DeleteMapping("/profile")
+    public ResponseEntity<?> deleteProfile(@AuthenticationPrincipal User user) {
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Unauthorized"));
+        }
+        try {
+            if ("WORKER".equalsIgnoreCase(user.getRole())) {
+                workerRepository.findByUserId(user.getId()).ifPresent(workerRepository::delete);
+            }
+            userRepository.delete(user);
+            return ResponseEntity.ok(Map.of("message", "Account deleted successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Cannot delete account due to associated records. Please contact support."));
+        }
     }
 }
 

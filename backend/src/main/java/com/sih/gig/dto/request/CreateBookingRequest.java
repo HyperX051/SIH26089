@@ -9,8 +9,8 @@ import java.time.OffsetDateTime;
 public class CreateBookingRequest {
 
     @NotBlank(message = "service_type is required")
-    @Pattern(regexp = "PLUMBER|ELECTRICIAN|CARPENTER|PAINTER|OTHER",
-             message = "service_type must be one of: PLUMBER, ELECTRICIAN, CARPENTER, PAINTER, OTHER")
+    @Pattern(regexp = "PLUMBER|ELECTRICIAN|CARPENTER|PAINTER|OTHER|AC_REPAIR|CLEANING|PEST_CONTROL|CAR_MECHANIC|APPLIANCE|ROOFING|HANDYMAN|LAPTOP_REPAIR|WASHING_MACHINE|REFRIGERATOR|SOFA_CLEANING|WATER_PURIFIER|GEYSER_REPAIR|BATHROOM_CLEANING",
+             message = "Invalid service_type")
     private String serviceType;
 
     @NotBlank(message = "category_type is required")

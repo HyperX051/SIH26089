@@ -67,6 +67,9 @@ public class Booking {
     @Column(name = "address_text", nullable = false, columnDefinition = "TEXT")
     private String addressText;
 
+    @Column(name = "issue_photo_url")
+    private String issuePhotoUrl;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;

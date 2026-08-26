@@ -36,8 +36,18 @@ public class Worker {
     private BigDecimal longitude;
 
     @Builder.Default
-    @Column(name = "ncct_certified")
-    private Boolean ncctCertified = Boolean.FALSE;
+    @Column(name = "aadhaar_verified")
+    private Boolean aadhaarVerified = Boolean.FALSE;
+
+    @Builder.Default
+    @Column(name = "iti_certified")
+    private Boolean itiCertified = Boolean.FALSE;
+
+    @Column(name = "nsqf_level", length = 10)
+    private String nsqfLevel;  // e.g. "4", "5", "6"
+
+    @Column(name = "trade_license_url", length = 255)
+    private String tradeLicenseUrl;
 
     @Builder.Default
     @Column(length = 20)
