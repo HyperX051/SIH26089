@@ -61,4 +61,18 @@ public class BookingController {
             @Valid @RequestBody VerifyOtpCompleteRequest req) {
         return ResponseEntity.ok(ApiResponse.ok(bookingService.verifyAndComplete(id, req)));
     }
+    /** GET /api/v1/bookings/available */
+    @GetMapping("/available")
+    public ResponseEntity<ApiResponse<?>> getAvailableBookings() {
+        return ResponseEntity.ok(ApiResponse.ok(bookingService.getAvailableBookings()));
+    }
+
+    /** POST /api/v1/bookings/:id/accept */
+    @PostMapping("/{id}/accept")
+    public ResponseEntity<ApiResponse<?>> acceptJob(
+            @PathVariable UUID id,
+            Authentication auth) {
+        User currentUser = (User) auth.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(bookingService.acceptJob(id, currentUser)));
+    }
 }

@@ -12,9 +12,8 @@ export default function WorkerApp() {
   const [billing, setBilling] = useState<any[]>([]);
   
   // Job States
-  const [radius, setRadius] = useState(5);
-  const [incomingGig, setIncomingGig] = useState(false);
-  const [countdown, setCountdown] = useState(45);
+  const [radius, setRadius] = useState(10);
+  const [availableJobs, setAvailableJobs] = useState<any[]>([]);
   const [jobStatus, setJobStatus] = useState<'IDLE' | 'ACCEPTED' | 'IN_PROGRESS' | 'VERIFYING' | 'COMPLETED'>('IDLE');
   
   // Job Execution States
@@ -27,20 +26,51 @@ export default function WorkerApp() {
   const user = useAuthStore(state => state.user);
   const { client, connected } = useStomp();
   const [activeBookingId, setActiveBookingId] = useState<string | null>(null);
+  const [activeJobDetails, setActiveJobDetails] = useState<any>(null);
 
+  // Bulletin Board: Fetch Available Jobs
   useEffect(() => {
-    if (client && connected && user?.id) {
-      const sub = client.subscribe(`/topic/worker/${user.id}`, (message) => {
+    const fetchJobs = async () => {
+      try {
+        const res = await api.get('/bookings/available');
+        setAvailableJobs(res.data.data);
+      } catch (e) {
+        console.error("Failed to fetch available jobs", e);
+      }
+    };
+    if (activeTab === 'JOBS' && jobStatus === 'IDLE') {
+      fetchJobs();
+      const interval = setInterval(fetchJobs, 15000); // Poll every 15s to keep list fresh
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, jobStatus]);
+
+  // Listen to Global /topic/jobs
+  useEffect(() => {
+    if (client && connected && jobStatus === 'IDLE') {
+      const sub = client.subscribe(`/topic/jobs`, (message) => {
         const data = JSON.parse(message.body);
-        if (data.event === 'GIG_OFFERED' && jobStatus === 'IDLE' && activeTab === 'JOBS') {
-          setActiveBookingId(data.payload.booking_id);
-          setIncomingGig(true);
-          setCountdown(data.payload.timeout_seconds || 45);
+        if (data.event === 'NEW_JOB_AVAILABLE') {
+          setAvailableJobs(prev => [data.payload, ...prev.filter(j => j.booking_id !== data.payload.booking_id)]);
         }
       });
       return () => sub.unsubscribe();
     }
-  }, [client, connected, user?.id, jobStatus, activeTab]);
+  }, [client, connected, jobStatus]);
+
+  // Listen to Active Booking Status
+  useEffect(() => {
+    if (client && connected && activeBookingId) {
+      const sub = client.subscribe(`/topic/booking/${activeBookingId}`, (message) => {
+        const data = JSON.parse(message.body);
+        if (data.event === 'STATUS_CHANGED' && data.payload.status === 'CANCELLED') {
+          alert("The customer has cancelled this booking.");
+          resetJobState();
+        }
+      });
+      return () => sub.unsubscribe();
+    }
+  }, [client, connected, activeBookingId]);
 
   useEffect(() => {
     const fetchWorkerData = async () => {
@@ -59,37 +89,21 @@ export default function WorkerApp() {
     }
   }, [user?.id]);
 
-  useEffect(() => {
-    // Local countdown fallback for demo
-    if (incomingGig) {
-      const interval = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            setIncomingGig(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(interval);
+  const acceptGig = async (job: any) => {
+    try {
+      await api.post(`/bookings/${job.booking_id}/accept`);
+      setActiveBookingId(job.booking_id);
+      setActiveJobDetails(job);
+      setJobStatus('ACCEPTED');
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || "Job is no longer available.");
+      setAvailableJobs(prev => prev.filter(j => j.booking_id !== job.booking_id));
     }
-  }, [incomingGig]);
-
-  const acceptGig = () => {
-    if (client && connected && activeBookingId) {
-      client.publish({
-        destination: '/app/gig-response',
-        body: JSON.stringify({ booking_id: activeBookingId, action: 'ACCEPT' })
-      });
-    }
-    setIncomingGig(false);
-    setJobStatus('ACCEPTED');
   };
 
   const simulateOCR = async () => {
     try {
-      // Real API call attempt
       const res = await api.post('/ai/ocr-receipt', { bookingId: activeBookingId, receiptImageUrl: 'mock_url' });
       setOcrData(res.data);
     } catch (err) {
@@ -105,6 +119,17 @@ export default function WorkerApp() {
       console.error("OTP API failed:", err);
       alert("Invalid OTP or server error");
     }
+  };
+
+  const resetJobState = () => {
+    setJobStatus('IDLE');
+    setActiveBookingId(null);
+    setActiveJobDetails(null);
+    setOtp("");
+    setBeforeImage(null);
+    setAfterImage(null);
+    setReceiptImage(null);
+    setOcrData(null);
   };
 
   return (
@@ -127,7 +152,7 @@ export default function WorkerApp() {
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-colors ${activeTab === 'JOBS' ? 'bg-green-500/10 text-green-400' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'}`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-            Active Gigs
+            Bulletin Board
           </button>
           <button 
             onClick={() => setActiveTab('BILLING')}
@@ -169,25 +194,27 @@ export default function WorkerApp() {
           <h1 className="text-xl font-bold text-white tracking-tight">
             {activeTab === 'JOBS' ? 'Dispatch Control' : activeTab === 'BILLING' ? 'Past Billing' : activeTab === 'WELFARE' ? 'Cooperative Welfare' : 'Professional Profile'}
           </h1>
-          <button 
-            onClick={async () => {
-              try {
-                await api.post('/safety/sos', {
-                  bookingId: activeBookingId,
-                  latitude: 12.9716, // dummy or real if added
-                  longitude: 77.5946,
-                  telemetry: { battery: 75 }
-                });
-                alert('SOS Alert Triggered! Federation command center notified.');
-              } catch (e) {
-                console.error(e);
-                alert('Failed to trigger SOS');
-              }
-            }}
-            className="bg-red-500/10 text-red-500 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-500/20 transition-colors"
-          >
-            Emergency SOS
-          </button>
+          {jobStatus !== 'IDLE' && jobStatus !== 'COMPLETED' && (
+            <button 
+              onClick={async () => {
+                try {
+                  await api.post('/safety/sos', {
+                    bookingId: activeBookingId,
+                    latitude: 12.9716,
+                    longitude: 77.5946,
+                    telemetry: { battery: 75 }
+                  });
+                  alert('SOS Alert Triggered! Federation command center notified.');
+                } catch (e) {
+                  console.error(e);
+                  alert('Failed to trigger SOS');
+                }
+              }}
+              className="bg-red-500/10 text-red-500 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-500/20 transition-colors"
+            >
+              Emergency SOS
+            </button>
+          )}
         </header>
 
         <div className="flex-1 overflow-y-auto p-8">
@@ -199,46 +226,79 @@ export default function WorkerApp() {
               <div className="w-full lg:w-1/3 flex flex-col gap-6">
                 
                 {jobStatus === 'IDLE' && (
-                  <section className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
-                    <h2 className="font-bold text-white mb-4 flex items-center gap-2">
-                      <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                      Dispatch Radar
-                    </h2>
-                    <div className="mb-6">
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-slate-400">Search Radius</span>
-                        <span className="text-green-400 font-bold">{radius} km</span>
+                  <>
+                    <section className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
+                      <h2 className="font-bold text-white mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        Dispatch Radar
+                      </h2>
+                      <div className="mb-6">
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="text-slate-400">Search Radius</span>
+                          <span className="text-green-400 font-bold">{radius} km</span>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="1" max="50" 
+                          value={radius} 
+                          onChange={(e) => setRadius(Number(e.target.value))}
+                          className="w-full accent-green-500"
+                        />
                       </div>
-                      <input 
-                        type="range" 
-                        min="1" max="25" 
-                        value={radius} 
-                        onChange={(e) => setRadius(Number(e.target.value))}
-                        className="w-full accent-green-500"
-                      />
-                    </div>
-                    <div className="bg-slate-900 rounded-xl p-4 text-center text-sm text-slate-400 border border-slate-800 flex items-center justify-center gap-3">
-                      <span className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)] animate-pulse"></span>
-                      Listening for federation broadcasts...
-                    </div>
-                  </section>
+                      <div className="bg-slate-900 rounded-xl p-4 text-center text-sm text-slate-400 border border-slate-800 flex items-center justify-center gap-3">
+                        <span className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)] animate-pulse"></span>
+                        Listening for federation broadcasts...
+                      </div>
+                    </section>
+
+                    <section className="flex-1 overflow-y-auto">
+                      <h3 className="font-bold text-slate-400 mb-4 uppercase tracking-wider text-xs">Available Jobs ({availableJobs.length})</h3>
+                      <div className="space-y-4">
+                        {availableJobs.length === 0 ? (
+                          <div className="bg-slate-800/30 p-8 rounded-2xl border border-slate-800 text-center text-slate-500">
+                            No jobs currently available in your area.
+                          </div>
+                        ) : (
+                          availableJobs.map((job, idx) => (
+                            <div key={job.booking_id || idx} className="bg-slate-800 p-5 rounded-2xl border border-slate-700 hover:border-green-500/50 transition-colors">
+                              <div className="flex justify-between items-start mb-3">
+                                <div>
+                                  <h4 className="font-bold text-white text-lg">{job.service_type || 'Service'} Request</h4>
+                                  <p className="text-sm text-slate-400 mt-1">Est. Payout: <span className="text-green-400 font-bold">₹{job.estimated_wage}</span></p>
+                                </div>
+                                <span className="bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-1 rounded text-xs font-bold uppercase">
+                                  New
+                                </span>
+                              </div>
+                              <button 
+                                onClick={() => acceptGig(job)}
+                                className="w-full bg-slate-700 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition-colors mt-2"
+                              >
+                                Accept Job
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </section>
+                  </>
                 )}
 
                 {(jobStatus !== 'IDLE' && jobStatus !== 'COMPLETED') && (
                   <div className="bg-slate-800 p-6 rounded-2xl border border-green-500/30 shadow-[0_0_30px_rgba(34,197,94,0.05)]">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-10 h-10 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2-2v10a2 2 0 002 2z"></path></svg>
                       </div>
                       <div>
-                        <h2 className="font-bold text-white">Plumbing Request</h2>
-                        <p className="text-sm text-slate-400">Customer: Ananya R.</p>
+                        <h2 className="font-bold text-white">{activeJobDetails?.service_type || 'Service'} Request</h2>
+                        <p className="text-sm text-slate-400">Accepted Job</p>
                       </div>
                     </div>
                     
                     <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 mb-4">
-                      <div className="flex justify-between text-sm mb-2"><span className="text-slate-500">Distance</span><span className="text-white">2.4 km</span></div>
-                      <div className="flex justify-between text-sm"><span className="text-slate-500">Est. Payout</span><span className="text-green-400 font-bold">₹450</span></div>
+                      <div className="flex justify-between text-sm mb-2"><span className="text-slate-500">Distance</span><span className="text-white">Calculating...</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-slate-500">Est. Payout</span><span className="text-green-400 font-bold">₹{activeJobDetails?.estimated_wage || '450'}</span></div>
                     </div>
 
                     {jobStatus === 'ACCEPTED' && (
@@ -257,8 +317,8 @@ export default function WorkerApp() {
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center opacity-30">
                       <svg className="w-24 h-24 mx-auto mb-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
-                      <p className="text-xl font-medium">Map view idle.</p>
-                      <p className="text-sm">Waiting for incoming requests...</p>
+                      <p className="text-xl font-medium">Map view active.</p>
+                      <p className="text-sm">Select a job from the Bulletin Board on the left.</p>
                     </div>
                   </div>
                 )}
@@ -357,18 +417,18 @@ export default function WorkerApp() {
                       <p className="text-slate-400 mb-8">Funds have been added to your escrow.</p>
                       
                       <div className="bg-slate-900 p-6 rounded-2xl text-sm text-slate-300 font-mono text-left mb-8 border border-slate-700">
-                        <div className="flex justify-between mb-3"><span>Base Wage:</span><span className="text-white">₹450.00</span></div>
+                        <div className="flex justify-between mb-3"><span>Base Wage:</span><span className="text-white">₹{activeJobDetails?.estimated_wage || '450.00'}</span></div>
                         <div className="flex justify-between mb-4 text-slate-500"><span>Welfare Deduction:</span><span>-₹22.50</span></div>
-                        <div className="border-t border-slate-700 pt-4 flex justify-between font-bold text-lg text-green-400"><span>Net Settlement:</span><span>₹427.50</span></div>
+                        <div className="border-t border-slate-700 pt-4 flex justify-between font-bold text-lg text-green-400"><span>Net Settlement:</span><span>₹{(parseFloat(activeJobDetails?.estimated_wage || '450') - 22.50).toFixed(2)}</span></div>
                       </div>
                       
                       <button 
-                        onClick={() => { setJobStatus('IDLE'); setOtp(""); setBeforeImage(null); setAfterImage(null); setReceiptImage(null); setOcrData(null); }} 
+                        onClick={resetJobState} 
                         className="w-full bg-green-600 hover:bg-green-500 py-4 rounded-xl font-bold text-white transition-colors"
                       >
                         Return to Radar
                       </button>
-                  </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -487,36 +547,6 @@ export default function WorkerApp() {
 
         </div>
       </main>
-
-      {/* Incoming Gig Modal - Centered Takeover */}
-      {incomingGig && jobStatus === 'IDLE' && activeTab === 'JOBS' && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-green-500/30 rounded-3xl w-full max-w-md p-8 text-center shadow-[0_0_60px_rgba(34,197,94,0.15)] relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-green-500 animate-[pulse_1s_ease-in-out_infinite]"></div>
-            
-            <div className="inline-flex bg-green-500/10 text-green-400 border border-green-500/20 text-xs font-bold px-4 py-1.5 rounded-full mb-6 uppercase tracking-widest">
-              New Request
-            </div>
-            
-            <h3 className="text-3xl font-extrabold mb-2 text-white">Plumbing Fix</h3>
-            <p className="text-slate-400 font-medium mb-8">2.4 km away • Est: ₹450</p>
-            
-            <div className="text-6xl font-mono mb-10 text-white font-bold drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
-              00:{countdown.toString().padStart(2, '0')}
-            </div>
-            
-            <div className="flex gap-4">
-              <button className="flex-1 bg-slate-800 text-slate-300 py-4 rounded-2xl font-bold hover:bg-slate-700 transition-colors" onClick={() => setIncomingGig(false)}>
-                Reject
-              </button>
-              <button className="flex-[2] bg-green-600 hover:bg-green-500 text-white py-4 rounded-2xl font-bold shadow-lg transition-colors" onClick={acceptGig}>
-                Accept Job
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }

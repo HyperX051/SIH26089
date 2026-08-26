@@ -67,8 +67,15 @@ public class BookingService {
 
         Booking saved = bookingRepository.save(booking);
 
-        // Trigger async geo-spatial dispatch
-        dispatchService.startDispatch(saved);
+        // Broadcast to all workers
+        broadcaster.broadcastNewJob(Map.of(
+            "booking_id", saved.getId().toString(),
+            "service_type", saved.getServiceType(),
+            "latitude", saved.getLatitude(),
+            "longitude", saved.getLongitude(),
+            "scheduled_for", saved.getScheduledFor() != null ? saved.getScheduledFor().toString() : "",
+            "estimated_wage", saved.getBaseWage()
+        ));
 
         return new LinkedHashMap<>(Map.of(
                 "booking_id", saved.getId().toString(),
@@ -218,6 +225,48 @@ public class BookingService {
                         "date", b.getCreatedAt() != null ? b.getCreatedAt().toString() : ""
                 ))
                 .toList();
+    }
+
+    /**
+     * GET /api/v1/bookings/available
+     */
+    public java.util.List<Map<String, Object>> getAvailableBookings() {
+        return bookingRepository.findByStatus("SEARCHING").stream()
+                .map(b -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("booking_id", b.getId().toString());
+                    map.put("service_type", b.getServiceType());
+                    map.put("latitude", b.getLatitude());
+                    map.put("longitude", b.getLongitude());
+                    map.put("estimated_wage", b.getBaseWage());
+                    map.put("scheduled_for", b.getScheduledFor() != null ? b.getScheduledFor().toString() : "");
+                    return map;
+                })
+                .toList();
+    }
+
+    /**
+     * POST /api/v1/bookings/:id/accept
+     */
+    @Transactional
+    public Map<String, Object> acceptJob(UUID bookingId, User workerUser) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> ApiException.notFound("Booking not found"));
+        
+        if (!"SEARCHING".equals(booking.getStatus())) {
+            throw ApiException.badRequest("Booking is no longer available");
+        }
+        
+        Worker worker = workerRepository.findByUserId(workerUser.getId())
+                .orElseThrow(() -> ApiException.notFound("Worker profile not found"));
+                
+        booking.setWorker(worker);
+        booking.setStatus("ACCEPTED");
+        bookingRepository.save(booking);
+        
+        broadcaster.sendStatusChanged(bookingId, "ACCEPTED");
+        
+        return Map.of("status", "ACCEPTED", "booking_id", booking.getId().toString());
     }
 
     /**

@@ -23,6 +23,13 @@ public class SocketBroadcaster {
 
     private final SimpMessagingTemplate template;
 
+    // ─── NEW_JOB_AVAILABLE (Bulletin Board) ───────────────────────────────────
+    public void broadcastNewJob(Map<String, Object> payload) {
+        log.debug("NEW_JOB_AVAILABLE → all workers");
+        template.convertAndSend("/topic/jobs",
+                Map.of("event", "NEW_JOB_AVAILABLE", "payload", payload));
+    }
+
     // ─── GIG_OFFERED ──────────────────────────────────────────────────────────
     public void sendGigOffered(UUID workerId, Map<String, Object> payload) {
         log.debug("GIG_OFFERED → worker/{}", workerId);

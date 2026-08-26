@@ -72,7 +72,7 @@ export default function CustomerLogin() {
       
       const { token, user } = response.data.data;
       
-      if (authMode === 'SIGNUP') {
+        if (authMode === 'SIGNUP') {
         // If they are signing up, we need to push the name they entered
         const formData = new FormData();
         formData.append('name', name);
@@ -83,7 +83,7 @@ export default function CustomerLogin() {
           }
         });
         setAuth(token, profileRes.data.user);
-        router.push('/customer');
+        router.push('/');
       } else {
         // LOGIN mode
         if (!user.name) {
@@ -92,7 +92,7 @@ export default function CustomerLogin() {
           setOtp("");
         } else {
           setAuth(token, user);
-          router.push('/customer');
+          router.push('/');
         }
       }
     } catch (err: any) {
@@ -104,15 +104,15 @@ export default function CustomerLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans relative overflow-hidden">
+    <div className="min-h-screen bg-pink-50/30 flex font-sans relative overflow-hidden">
       {/* Decorative Blobs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-400/30 blur-[120px] rounded-full pointer-events-none mix-blend-multiply"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-400/30 blur-[120px] rounded-full pointer-events-none mix-blend-multiply"></div>
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-pink-400/30 blur-[120px] rounded-full pointer-events-none mix-blend-multiply"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-orange-400/20 blur-[120px] rounded-full pointer-events-none mix-blend-multiply"></div>
       
       {/* Left Side: Branding */}
       <div className="hidden lg:flex w-1/2 flex-col justify-center items-start p-20 relative z-10">
         <div className="flex items-center gap-3 mb-12">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
+          <div className="w-12 h-12 rounded-2xl bg-pink-500 flex items-center justify-center shadow-lg shadow-pink-500/30">
             <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
           </div>
           <span className="font-extrabold text-3xl tracking-tight text-slate-900">FixNow</span>
@@ -120,7 +120,7 @@ export default function CustomerLogin() {
 
         <h1 className="text-6xl font-black text-slate-900 leading-[1.1] tracking-tight mb-8">
           Your home,<br/>
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">perfectly fixed.</span>
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-orange-500">perfectly fixed.</span>
         </h1>
         <p className="text-xl text-slate-600 font-medium max-w-lg leading-relaxed">
           Experience premium home services with our vetted cooperative network. Transparent pricing, instant booking, and guaranteed satisfaction.
@@ -193,7 +193,7 @@ export default function CustomerLogin() {
               <button 
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-white font-bold py-4 rounded-xl flex justify-center items-center transition-all shadow-md active:scale-[0.98] mt-2"
+                className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 disabled:opacity-50 text-white font-bold py-4 rounded-xl flex justify-center items-center transition-all shadow-md active:scale-[0.98] mt-2"
               >
                 {loading ? "Sending OTP..." : "Continue"}
               </button>
@@ -222,7 +222,7 @@ export default function CustomerLogin() {
               <button 
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-white font-bold py-4 rounded-xl flex justify-center items-center transition-all shadow-md active:scale-[0.98] mt-2"
+                className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 disabled:opacity-50 text-white font-bold py-4 rounded-xl flex justify-center items-center transition-all shadow-md active:scale-[0.98] mt-2"
               >
                 {loading ? "Verifying..." : (authMode === 'SIGNUP' ? "Create Account" : "Verify & Sign In")}
               </button>

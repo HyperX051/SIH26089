@@ -1,614 +1,139 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { Wrench, Zap, Hammer, Paintbrush, ThermometerSnowflake, Droplet, Tv, Sparkles, Bug, Car, MapPin, Loader2 } from 'lucide-react';
-import dynamic from 'next/dynamic';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { useStomp } from '@/hooks/useStomp';
 import { useAuthStore } from '@/store/useAuthStore';
-import UPIPayment from '@/components/UPIPayment';
-import WorkerBadge from '@/components/WorkerBadge';
+import Link from 'next/link';
 
-const DynamicMapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
-
-
-type BookingStatus = 'IDLE' | 'SEARCHING' | 'ACCEPTED' | 'COMPLETED' | 'FEEDBACK';
-
-export default function CustomerApp() {
-  const [bookingStatus, setBookingStatus] = useState<BookingStatus>('IDLE');
-  const [selectedDomain, setSelectedDomain] = useState('maintenance');
-  const [selectedService, setSelectedService] = useState('plumber');
-  const [problemDescription, setProblemDescription] = useState('');
-  const [sosActive, setSosActive] = useState(false);
-  const [rating, setRating] = useState(0);
-  const [bookingId, setBookingId] = useState<string | null>(null);
-
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'bookings' | 'profile'>('dashboard');
+export default function CustomerDashboard() {
+  const router = useRouter();
+  const { user, token, clearAuth } = useAuthStore();
+  
+  const [activeTab, setActiveTab] = useState<'bookings' | 'profile'>('bookings');
   const [pastBookings, setPastBookings] = useState<any[]>([]);
 
-  // Location state
-  const [location, setLocation] = useState<{ latitude: number; longitude: number; address: string } | null>(null);
-  const [locationLoading, setLocationLoading] = useState(false);
-  const [locationError, setLocationError] = useState('');
-
-  const { client, connected } = useStomp();
-  const user = useAuthStore(state => state.user);
+  useEffect(() => {
+    if (!token) {
+      router.push('/customer/login');
+      return;
+    }
+    
+    if (activeTab === 'bookings') {
+      fetchPastBookings();
+    }
+  }, [activeTab, token, router]);
 
   const fetchPastBookings = async () => {
     try {
-      const res = await api.get('/bookings/customer');
+      const res = await api.get('/bookings/customer', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setPastBookings(res.data.data);
     } catch (e) {
       console.error("Failed to fetch bookings", e);
     }
   };
 
-  useEffect(() => {
-    if (activeTab === 'bookings') {
-      fetchPastBookings();
-    }
-  }, [activeTab]);
-
-  // Auto-fetch location from browser when the component loads
-  const fetchLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      setLocationError('Geolocation not supported by your browser.');
-      return;
-    }
-    setLocationLoading(true);
-    setLocationError('');
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        // Reverse geocode using nominatim (free, no API key)
-        let address = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
-          );
-          const data = await res.json();
-          address = data.display_name || address;
-        } catch {
-          // fallback to coordinates
-        }
-        setLocation({ latitude, longitude, address });
-        setLocationLoading(false);
-      },
-      (err) => {
-        setLocationError('Location permission denied. Please allow location access.');
-        setLocationLoading(false);
-      },
-      { timeout: 10000 }
-    );
-  }, []);
-
-  useEffect(() => {
-    if (client && connected && bookingId) {
-      const sub = client.subscribe(`/topic/booking/${bookingId}`, (message) => {
-        const data = JSON.parse(message.body);
-        if (data.event === 'STATUS_CHANGED') {
-          setBookingStatus(data.payload.status);
-        }
-      });
-      return () => sub.unsubscribe();
-    }
-  }, [client, connected, bookingId]);
-
-  const handleBookService = async () => {
-    if (!problemDescription.trim()) {
-      alert('Please describe the problem before booking.');
-      return;
-    }
-    
-    if (!location) {
-      setLocationLoading(true);
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const { latitude, longitude } = pos.coords;
-          let address = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-          try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
-            const data = await res.json();
-            address = data.display_name || address;
-          } catch {}
-          
-          const newLocation = { latitude, longitude, address };
-          setLocation(newLocation);
-          setLocationLoading(false);
-          
-          submitBooking(newLocation);
-        },
-        (err) => {
-          setLocationError('Location permission denied. Please allow location access.');
-          setLocationLoading(false);
-          alert('Location permission is required to book a service.');
-        },
-        { timeout: 10000 }
-      );
-      return;
-    }
-
-    submitBooking(location);
-  };
-
-  const submitBooking = async (loc: any) => {
-    setBookingStatus('SEARCHING');
-    try {
-      const serviceTypeMapping: Record<string, string> = {
-        'Plumbing': 'PLUMBER',
-        'Electrical': 'ELECTRICIAN',
-        'Carpentry': 'CARPENTER',
-        'Painting': 'PAINTER'
-      };
-      const apiServiceType = serviceTypeMapping[selectedService] || 'OTHER';
-
-      const response = await api.post('/bookings', {
-        serviceType: apiServiceType,
-        categoryType: selectedDomain === 'Quick Fix' ? 'PREDEFINED' : 'CUSTOM',
-        bookingType: 'INSTANT',
-        customPromptText: problemDescription.trim(),
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        pincode: "560001", // Default pincode for now
-        addressText: loc.address || "Current Location"
-      });
-      setBookingId(response.data.booking_id || response.data.data?.id); // adjust based on actual API response
-    } catch (err) {
-      console.error("Failed to create booking:", err);
-      setBookingStatus('IDLE');
-      alert("Failed to create booking");
-    }
-  };
-
-  const handleSOS = async () => {
-    setSosActive(true);
-    try {
-      await api.post('/safety/sos', {
-        bookingId: bookingId,
-        latitude: location?.latitude,
-        longitude: location?.longitude,
-        telemetry: { battery: 80 }
-      });
-    } catch (err) {
-      console.error("SOS API failed:", err);
-    }
-  };
-
-  const handleSimulateCompletion = async () => {
-    try {
-      await api.post(`/bookings/${bookingId}/verify-otp-complete`, { enteredOtp: "482910" });
-    } catch (err) {
-      console.error(err);
-    }
-    setBookingStatus('COMPLETED');
-  };
-
-  const handlePayment = () => {
-    setTimeout(() => { setBookingStatus('FEEDBACK'); }, 1500);
-  };
-
-  const domains = [
-    { id: 'maintenance', label: 'Home Maintenance' },
-    { id: 'appliances', label: 'Appliance Servicing' },
-    { id: 'cleaning', label: 'Deep Cleaning' },
-    { id: 'auto', label: 'Auto Mechanics' }
-  ];
-
-  const servicesByDomain: Record<string, { id: string; icon: JSX.Element; label: string }[]> = {
-    maintenance: [
-      { id: 'plumber', icon: <Wrench className="w-8 h-8" />, label: 'Plumber' },
-      { id: 'electrician', icon: <Zap className="w-8 h-8" />, label: 'Electrician' },
-      { id: 'carpenter', icon: <Hammer className="w-8 h-8" />, label: 'Carpenter' },
-      { id: 'painter', icon: <Paintbrush className="w-8 h-8" />, label: 'Painter' }
-    ],
-    appliances: [
-      { id: 'ac_repair', icon: <ThermometerSnowflake className="w-8 h-8" />, label: 'AC Repair' },
-      { id: 'washing_machine', icon: <Droplet className="w-8 h-8" />, label: 'Washing Mach.' },
-      { id: 'tv_repair', icon: <Tv className="w-8 h-8" />, label: 'TV Repair' }
-    ],
-    cleaning: [
-      { id: 'home_clean', icon: <Sparkles className="w-8 h-8" />, label: 'Full Home' },
-      { id: 'pest_control', icon: <Bug className="w-8 h-8" />, label: 'Pest Control' }
-    ],
-    auto: [
-      { id: 'car_repair', icon: <Car className="w-8 h-8" />, label: 'Car Repair' }
-    ]
-  };
-
-  const currentServices = servicesByDomain[selectedDomain] || [];
-
   return (
-    <div className="min-h-screen bg-[#fafafc] flex font-sans">
-      
-      {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col">
-        <div className="h-16 flex items-center px-6 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+    <div className="min-h-screen bg-[#FDF2F8] flex flex-col font-sans">
+      {/* Header */}
+      <header className="h-[72px] flex items-center justify-between px-8 bg-white border-b border-pink-100 shadow-sm shrink-0">
+        <Link href="/" className="flex items-center gap-2 cursor-pointer">
+          <div className="w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center shadow-md">
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+          </div>
+          <span className="font-black text-xl tracking-tight text-slate-900">FixNow</span>
+        </Link>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-pink-50 border border-pink-100 rounded-full px-4 py-1.5 shadow-sm">
+            <div className="w-8 h-8 rounded-full bg-pink-200 flex items-center justify-center text-pink-700 font-black text-xs">
+              {user?.name?.[0].toUpperCase() || 'U'}
             </div>
-            <span className="font-extrabold text-xl tracking-tight text-slate-900">FixNow</span>
+            <span className="font-bold text-sm text-slate-800">{user?.name || 'Customer'}</span>
           </div>
         </div>
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-colors ${activeTab === 'dashboard' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50'}`}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-            Dashboard
-          </button>
-          <button 
-            onClick={() => setActiveTab('bookings')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-colors ${activeTab === 'bookings' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50'}`}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
-            Past Bookings
-          </button>
-          <button 
-            onClick={() => setActiveTab('profile')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-colors ${activeTab === 'profile' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50'}`}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-            Profile & Billing
-          </button>
-        </nav>
-        <div className="p-4 border-t border-slate-100">
-          <div className="flex items-center gap-3 px-4 py-2">
-            <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white shadow-sm flex items-center justify-center font-bold text-slate-500 text-xs">
-              {user?.name ? user.name[0].toUpperCase() : '?'}
-            </div>
-            <div>
-              <p className="text-sm font-bold text-slate-800">{user?.name || 'Customer'}</p>
-              <p className="text-xs font-medium text-slate-400">Member</p>
-            </div>
-          </div>
-        </div>
-      </aside>
+      </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col h-screen overflow-y-auto">
-        {activeTab === 'dashboard' && (
-          <>
-            {/* Header — live location */}
-            <header className="h-16 flex items-center justify-between px-8 bg-white/70 backdrop-blur-md sticky top-0 z-30 border-b border-slate-200/50 hidden md:flex">
-              <h1 className="text-xl font-bold text-slate-800 tracking-tight">Book a Service</h1>
-              <div className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-full text-sm font-semibold text-slate-600 max-w-xs truncate">
-                {locationLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-                    <span>Fetching your location...</span>
-                  </>
-                ) : locationError ? (
-                  <>
-                    <MapPin className="w-4 h-4 text-red-400" />
-                    <span className="text-red-500 truncate">Location unavailable</span>
-                  </>
-                ) : (
-                  <>
-                    <MapPin className="w-4 h-4 text-purple-500" />
-                    <span className="truncate">{location?.address ?? 'Unknown location'}</span>
-                  </>
-                )}
-              </div>
-            </header>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <aside className="w-64 bg-white border-r border-pink-100 hidden md:flex flex-col shrink-0">
+          <nav className="flex-1 p-6 space-y-2 overflow-y-auto">
+            <button 
+              onClick={() => setActiveTab('bookings')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm transition-all ${activeTab === 'bookings' ? 'bg-pink-50 text-pink-600 shadow-sm border border-pink-100' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+              My Bookings
+            </button>
+            <button 
+              onClick={() => setActiveTab('profile')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm transition-all ${activeTab === 'profile' ? 'bg-pink-50 text-pink-600 shadow-sm border border-pink-100' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+              Profile
+            </button>
+          </nav>
+        </aside>
 
-            <div className="p-6 md:p-10 max-w-4xl mx-auto w-full">
-              <div className="mb-10">
-                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">What do you need help with?</h2>
-                <p className="text-slate-500 font-medium">Select a category, choose a service, and describe the problem.</p>
-              </div>
-
-              <div className="space-y-8">
-                {/* Category */}
-                <section>
-                  <label className="block text-sm font-bold text-slate-700 mb-3">Service Category</label>
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    {domains.map(d => (
-                      <button
-                        key={d.id}
-                        onClick={() => {
-                          setSelectedDomain(d.id);
-                          setSelectedService(servicesByDomain[d.id][0].id);
-                          setProblemDescription('');
-                        }}
-                        className={`px-5 py-3 rounded-2xl text-sm font-bold whitespace-nowrap transition-all shadow-sm ${selectedDomain === d.id ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                      >
-                        {d.label}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
-                {/* Specific Task */}
-                <section>
-                  <label className="block text-sm font-bold text-slate-700 mb-3">Specific Task</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {currentServices.map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() => { setSelectedService(s.id); setProblemDescription(''); }}
-                        className={`flex flex-col items-center justify-center p-6 rounded-3xl border transition-all duration-300 ${selectedService === s.id ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-md ring-2 ring-indigo-600/20' : 'bg-white border-slate-100 text-slate-600 hover:shadow-md'}`}
-                      >
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${selectedService === s.id ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-500'}`}>
-                          {s.icon}
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto p-6 md:p-10">
+          <div className="max-w-4xl mx-auto">
+            {activeTab === 'bookings' && (
+              <div>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-8">Past Bookings</h2>
+                <div className="space-y-4">
+                  {pastBookings.length === 0 ? (
+                    <div className="text-center py-16 bg-white rounded-3xl border border-pink-100 shadow-sm">
+                      <p className="text-slate-500 font-medium text-lg">No past bookings found.</p>
+                      <Link href="/" className="mt-4 inline-block bg-pink-50 text-pink-600 font-bold px-6 py-2 rounded-xl">Book a Service</Link>
+                    </div>
+                  ) : (
+                    pastBookings.map(b => (
+                      <div key={b.id} className="bg-white rounded-3xl border border-pink-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow">
+                        <div>
+                          <p className="font-black text-slate-800 text-lg">{b.serviceType}</p>
+                          <p className="text-slate-500 text-sm font-medium">{new Date(b.date).toLocaleString()}</p>
                         </div>
-                        <span className="text-sm font-bold text-center leading-tight">{s.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
-                {/* Problem Description + Location — appears after selecting service */}
-                <section className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">
-                      Describe the Problem
-                      <span className="text-red-500 ml-1">*</span>
-                    </label>
-                    <textarea
-                      value={problemDescription}
-                      onChange={(e) => setProblemDescription(e.target.value)}
-                      placeholder={`E.g. "My ${currentServices.find(s => s.id === selectedService)?.label ?? 'service'} is not working since yesterday morning. There's a leaking pipe in the bathroom."`}
-                      rows={4}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all resize-none"
-                    />
-                    <p className="text-xs text-slate-400 mt-1 font-medium">{problemDescription.length}/500 characters</p>
-                  </div>
-
-                  {/* Auto-fetched location */}
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-                      <MapPin className="w-4 h-4 text-purple-500" />
-                      Your Location
-                    </label>
-                    <div className="mb-3">
-                      <DynamicMapPicker 
-                        initialPosition={location ? { lat: location.latitude, lng: location.longitude } : null}
-                        onLocationSelect={async (lat, lng) => {
-                          setLocationLoading(true);
-                          let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-                          try {
-                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
-                            const data = await res.json();
-                            address = data.display_name || address;
-                          } catch {}
-                          setLocation({ latitude: lat, longitude: lng, address });
-                          setLocationLoading(false);
-                        }}
-                      />
-                    </div>
-                    <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border text-sm font-medium transition-all
-                      ${locationError ? 'border-red-200 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
-                      {locationLoading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin text-slate-400 shrink-0" />
-                          <span className="text-slate-500">Updating location...</span>
-                        </>
-                      ) : locationError ? (
-                        <>
-                          <span className="flex-1">{locationError}</span>
-                          <button onClick={fetchLocation} className="text-xs font-bold text-purple-600 hover:text-purple-700 shrink-0">
-                            Retry
-                          </button>
-                        </>
-                      ) : location ? (
-                        <>
-                          <MapPin className="w-4 h-4 text-purple-500 shrink-0" />
-                          <span className="flex-1 truncate">{location.address}</span>
-                          <button onClick={fetchLocation} className="text-xs font-bold text-purple-600 hover:text-purple-700 shrink-0">
-                            Auto Detect
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="flex-1 text-slate-500">Tap the map above to select your location</span>
-                          <button onClick={fetchLocation} className="text-xs font-bold text-purple-600 hover:text-purple-700 shrink-0">
-                            Auto Detect
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </section>
-
-                {/* Book Button */}
-                {bookingStatus === 'IDLE' && (
-                  <div className="pt-2">
-                    <button
-                      onClick={handleBookService}
-                      disabled={!problemDescription.trim() || locationLoading}
-                      className="w-full md:w-auto px-10 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-bold shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                      Find Worker Instantly
-                    </button>
-                    {!problemDescription.trim() && (
-                      <p className="text-xs text-slate-400 font-medium mt-2">Please describe your problem to continue</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-
-        {activeTab === 'bookings' && (
-          <div className="p-6 md:p-10 max-w-4xl mx-auto w-full">
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-8">Past Bookings</h2>
-            <div className="space-y-4">
-              {pastBookings.length === 0 ? (
-                <div className="text-center py-10 bg-white rounded-3xl border border-slate-200">
-                  <p className="text-slate-500 font-medium">No past bookings found.</p>
-                </div>
-              ) : (
-                pastBookings.map(b => (
-                  <div key={b.id} className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <p className="font-bold text-slate-800 text-lg">{b.serviceType}</p>
-                      <p className="text-slate-500 text-sm">{b.date}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${b.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                        {b.status}
-                      </span>
-                      <span className="font-bold text-slate-900">₹{b.amount}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'profile' && (
-          <div className="p-6 md:p-10 max-w-4xl mx-auto w-full">
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-8">Profile & Billing</h2>
-            <div className="bg-white rounded-3xl border border-slate-200 p-8">
-              <div className="flex items-center gap-6 mb-8 border-b border-slate-100 pb-8">
-                <div className="w-20 h-20 rounded-full bg-slate-200 flex items-center justify-center text-3xl font-bold text-slate-500">
-                  {user?.name ? user.name[0].toUpperCase() : '?'}
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-800">{user?.name || 'Customer Name'}</h3>
-                  <p className="text-slate-500">{user?.phone}</p>
+                        <div className="flex items-center gap-4">
+                          <span className={`px-4 py-1.5 rounded-full text-xs font-black tracking-wide ${b.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                            {b.status}
+                          </span>
+                          <span className="font-black text-slate-900 text-lg">₹{b.amount}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
-              <div className="space-y-4">
-                <h4 className="font-bold text-slate-700">Billing Information</h4>
-                <p className="text-sm text-slate-500">Your billing is managed per-request. No active subscriptions.</p>
-                <button className="bg-slate-100 hover:bg-slate-200 text-slate-800 px-6 py-2 rounded-xl font-bold text-sm transition-colors">
-                  Add Payment Method
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
+            )}
 
-      {/* Right Panel: Active Request */}
-      <aside className={`w-full md:w-96 bg-white border-l border-slate-200 flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.02)] z-40 relative ${activeTab === 'dashboard' ? 'flex' : 'hidden md:flex'}`}>
-        <header className="h-16 flex items-center px-6 border-b border-slate-100 bg-white">
-          <h2 className="font-bold text-slate-800 tracking-tight">Active Request</h2>
-        </header>
-        <div className="flex-1 overflow-y-auto bg-slate-50 p-6 relative">
-
-          {bookingStatus === 'IDLE' && (
-            <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 mb-4">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-              </div>
-              <p className="text-slate-500 font-medium text-sm max-w-[200px]">Select a service and describe your problem to begin.</p>
-            </div>
-          )}
-
-          {bookingStatus === 'SEARCHING' && (
-            <div className="flex flex-col items-center justify-center h-full py-10 animate-in fade-in">
-              <div className="relative w-24 h-24 flex items-center justify-center mb-6">
-                <div className="absolute inset-0 border-4 border-indigo-100 rounded-full animate-ping"></div>
-                <div className="absolute inset-2 border-4 border-indigo-300 rounded-full animate-pulse"></div>
-                <div className="bg-indigo-600 text-white w-12 h-12 rounded-full flex items-center justify-center z-10 shadow-lg">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                </div>
-              </div>
-              <h3 className="text-lg font-bold text-slate-800">Searching Nearby...</h3>
-              <p className="text-sm text-slate-500 text-center mt-2">Contacting top-rated cooperative workers within a 5km radius.</p>
-              {problemDescription && (
-                <div className="mt-4 bg-white border border-slate-200 rounded-2xl p-4 text-left w-full">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Your Request</p>
-                  <p className="text-sm text-slate-700 font-medium">{problemDescription}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {bookingStatus === 'ACCEPTED' && (
-            <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-500">
-              <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm shadow-emerald-100/50">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center overflow-hidden shrink-0">
-                      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Worker" className="w-10 h-10" alt="Worker" />
+            {activeTab === 'profile' && (
+              <div>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-8">My Profile</h2>
+                <div className="bg-white rounded-3xl border border-pink-100 p-8 shadow-sm">
+                  <div className="flex items-center gap-6 mb-8 border-b border-slate-100 pb-8">
+                    <div className="w-24 h-24 rounded-full bg-pink-100 flex items-center justify-center text-4xl font-black text-pink-500">
+                      {user?.name ? user.name[0].toUpperCase() : '?'}
                     </div>
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-0.5">Assigned Professional</p>
-                      <h3 className="font-extrabold text-slate-800 leading-tight">Worker Assigned</h3>
-                      <WorkerBadge ncctCertified={true} tier="SKILLED" rating={4.8} />
+                      <h3 className="text-2xl font-black text-slate-800">{user?.name || 'Customer Name'}</h3>
+                      <p className="text-slate-500 font-medium">{user?.phone}</p>
                     </div>
                   </div>
-                </div>
-                <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
-                  <p className="text-[10px] text-emerald-700 mb-1 uppercase tracking-widest font-bold text-center">Closure OTP</p>
-                  <div className="text-3xl font-mono font-bold tracking-[0.2em] text-center text-emerald-900">482910</div>
-                  <p className="text-[10px] text-center mt-1 text-emerald-600 font-medium">Share this ONLY when the job is done.</p>
+                  
+                  <button 
+                    onClick={() => { clearAuth(); router.push('/'); }}
+                    className="bg-red-50 hover:bg-red-100 text-red-600 px-6 py-3 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
+                  >
+                    Sign Out
+                  </button>
                 </div>
               </div>
-              <button onClick={handleSimulateCompletion} className="w-full bg-slate-200 text-slate-600 py-3 rounded-xl text-sm font-bold opacity-60 hover:opacity-100 transition-opacity">
-                [Dev] Simulate Completion
-              </button>
-              <button onClick={handleSOS} className="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold text-sm border border-red-200 hover:bg-red-100 transition-colors">
-                SOS / Emergency Help
-              </button>
-            </div>
-          )}
-
-          {bookingStatus === 'COMPLETED' && (
-            <div className="space-y-6 animate-in fade-in">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                </div>
-                <h3 className="text-xl font-bold text-slate-800 tracking-tight">Job Completed</h3>
-                <p className="text-sm text-slate-500 font-medium">Please settle the payment directly with the worker.</p>
-              </div>
-              
-              <UPIPayment 
-                amount={450.00} // This should ideally come from backend state
-                workerName="Assigned Professional"
-                onPaymentSuccess={handlePayment}
-              />
-            </div>
-          )}
-
-          {bookingStatus === 'FEEDBACK' && (
-            <div className="space-y-6 animate-in slide-in-from-bottom-4 fade-in text-center py-6">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-              </div>
-              <h3 className="text-xl font-bold text-slate-800 tracking-tight">Payment Successful</h3>
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 text-left">
-                <h4 className="font-bold text-slate-800 mb-3 text-center text-sm">Rate your professional</h4>
-                <div className="flex justify-center gap-1 mb-5">
-                  {[1,2,3,4,5].map(star => (
-                    <button key={star} onClick={() => setRating(star)} className={`text-3xl transition-colors ${rating >= star ? 'text-amber-400' : 'text-slate-200'}`}>★</button>
-                  ))}
-                </div>
-                <textarea placeholder="Leave a review..." className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium outline-none focus:border-slate-400 focus:bg-white resize-none h-24 mb-4 transition-all"></textarea>
-                <button onClick={() => { setBookingStatus('IDLE'); setRating(0); setProblemDescription(''); }} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-sm hover:bg-slate-800">
-                  Submit Feedback
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </aside>
-
-      {/* SOS Modal */}
-      {sosActive && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl relative border border-slate-200">
-            <div className="bg-red-600 text-white p-6 text-center animate-[pulse_1s_ease-in-out_infinite]">
-              <h2 className="text-2xl font-black uppercase tracking-widest">SOS Triggered</h2>
-            </div>
-            <div className="p-6 text-center space-y-4">
-              <p className="text-slate-700 font-medium text-sm">Your live location has been shared with emergency services and the Federation Command Center.</p>
-              <button onClick={() => setSosActive(false)} className="mt-4 w-full bg-white border border-slate-200 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-50 text-sm">
-                Cancel / False Alarm
-              </button>
-            </div>
+            )}
           </div>
-        </div>
-      )}
+        </main>
+      </div>
     </div>
   );
 }
