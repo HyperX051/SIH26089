@@ -16,6 +16,11 @@ export default function CustomerLogin() {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  const [needsProfile, setNeedsProfile] = useState(false);
+  const [name, setName] = useState("");
+  const [tempToken, setTempToken] = useState<string | null>(null);
+  const [tempUser, setTempUser] = useState<any>(null);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,14 +68,53 @@ export default function CustomerLogin() {
         session_id: sessionId
       });
       
-      // Save to Zustand global store
+      // Save to Zustand global store if profile is complete
       const { token, user } = response.data.data;
-      setAuth(token, user);
-      router.push('/customer');
+      if (!user.name) {
+        setNeedsProfile(true);
+        setTempToken(token);
+        setTempUser(user);
+      } else {
+        setAuth(token, user);
+        router.push('/customer');
+      }
       
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.message || "Invalid OTP or Server Error.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompleteProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    
+    if (!name.trim()) {
+      setError("Please enter your name");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', name);
+
+      const response = await api.post('/auth/complete-profile', formData, {
+        headers: {
+          'Authorization': `Bearer ${tempToken}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      const updatedUser = response.data.user;
+      setAuth(tempToken!, updatedUser);
+      router.push('/customer');
+      
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.message || "Failed to complete profile.");
     } finally {
       setLoading(false);
     }
@@ -115,7 +159,7 @@ export default function CustomerLogin() {
           <div className="text-center mb-10">
             <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">Welcome back</h2>
             <p className="text-slate-500 font-medium">
-              {!sessionId ? "Please enter your phone number." : `Enter the OTP sent to ${phone}`}
+              {needsProfile ? "Let's complete your profile." : (!sessionId ? "Please enter your phone number." : `Enter the OTP sent to ${phone}`)}
             </p>
           </div>
           
@@ -125,7 +169,7 @@ export default function CustomerLogin() {
             </div>
           )}
           
-          {!sessionId ? (
+          {!sessionId && !needsProfile ? (
             <form className="space-y-5" onSubmit={handleSendOtp}>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">Phone Number</label>
@@ -149,7 +193,7 @@ export default function CustomerLogin() {
                 {loading ? "Sending OTP..." : "Continue"}
               </button>
             </form>
-          ) : (
+          ) : !needsProfile ? (
             <form className="space-y-5" onSubmit={handleVerifyOtp}>
               {devOtp && (
                 <div className="mb-4 p-4 rounded-xl bg-blue-50 border border-blue-100 text-center">
@@ -174,12 +218,33 @@ export default function CustomerLogin() {
                 disabled={loading}
                 className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold py-4 rounded-2xl flex justify-center items-center transition-all shadow-[0_4px_14px_rgba(0,0,0,0.1)] active:scale-[0.98] mt-4"
               >
-                {loading ? "Verifying..." : "Sign In to Portal"}
+                {loading ? "Verifying..." : "Verify OTP"}
               </button>
               
               <div className="text-center mt-4">
                 <button type="button" onClick={() => setSessionId(null)} className="text-sm font-bold text-purple-600 hover:text-purple-700">Change Phone Number</button>
               </div>
+            </form>
+          ) : (
+            <form className="space-y-5" onSubmit={handleCompleteProfile}>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Your Full Name</label>
+                <input 
+                  type="text" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe" 
+                  className="w-full border border-slate-200 bg-slate-50 rounded-2xl px-5 py-4 text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none focus:border-purple-500 focus:bg-white transition-all shadow-sm"
+                />
+              </div>
+              
+              <button 
+                type="submit"
+                disabled={loading}
+                className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold py-4 rounded-2xl flex justify-center items-center transition-all shadow-[0_4px_14px_rgba(0,0,0,0.1)] active:scale-[0.98] mt-4"
+              >
+                {loading ? "Saving..." : "Sign In to Portal"}
+              </button>
             </form>
           )}
           

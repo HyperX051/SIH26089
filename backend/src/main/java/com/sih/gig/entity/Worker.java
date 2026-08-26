@@ -21,9 +21,11 @@ public class Worker {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
+    @Builder.Default
     @Column(name = "service_radius_km", precision = 6, scale = 2)
     private BigDecimal serviceRadiusKm = BigDecimal.valueOf(10.0);
 
+    @Builder.Default
     @Column(name = "is_available")
     private Boolean isAvailable = Boolean.FALSE;
 
@@ -33,17 +35,24 @@ public class Worker {
     @Column(precision = 11, scale = 7)
     private BigDecimal longitude;
 
+    @Builder.Default
     @Column(name = "ncct_certified")
     private Boolean ncctCertified = Boolean.FALSE;
 
+    @Builder.Default
     @Column(length = 20)
     private String tier = "BASIC";  // 'BASIC' | 'SKILLED' | 'EXPERT'
 
+    @Builder.Default
     @Column(precision = 3, scale = 2)
     private BigDecimal rating = BigDecimal.ZERO;
 
+    @Builder.Default
     @Column(name = "total_jobs")
     private Integer totalJobs = 0;
+
+    @Column(name = "photo_url", length = 255)
+    private String photoUrl;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

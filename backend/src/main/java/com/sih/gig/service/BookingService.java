@@ -75,7 +75,7 @@ public class BookingService {
                 "status",     "SEARCHING",
                 "base_wage",  saved.getBaseWage(),
                 "otp_code",   otp,
-                "created_at", saved.getCreatedAt().toString()
+                "created_at", saved.getCreatedAt() != null ? saved.getCreatedAt().toString() : OffsetDateTime.now().toString()
         ));
     }
 

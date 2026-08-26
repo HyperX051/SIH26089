@@ -35,4 +35,18 @@ public class WorkerController {
         User currentUser = (User) auth.getPrincipal();
         return ResponseEntity.ok(ApiResponse.ok(workerService.updateAvailability(currentUser, req)));
     }
+
+    /** GET /api/v1/workers/profile */
+    @GetMapping("/profile")
+    public ResponseEntity<ApiResponse<?>> getProfile(Authentication auth) {
+        User currentUser = (User) auth.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(workerService.getWorkerProfile(currentUser)));
+    }
+
+    /** GET /api/v1/workers/billing */
+    @GetMapping("/billing")
+    public ResponseEntity<ApiResponse<?>> getBilling(Authentication auth) {
+        User currentUser = (User) auth.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(workerService.getPastBilling(currentUser)));
+    }
 }

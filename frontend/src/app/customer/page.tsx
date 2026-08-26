@@ -58,9 +58,9 @@ export default function CustomerApp() {
     );
   }, []);
 
-  useEffect(() => {
-    fetchLocation();
-  }, [fetchLocation]);
+      { timeout: 10000 }
+    );
+  }, []);
 
   useEffect(() => {
     if (client && connected && bookingId) {
@@ -79,24 +79,64 @@ export default function CustomerApp() {
       alert('Please describe the problem before booking.');
       return;
     }
+    
     if (!location) {
-      alert('Location is required. Please allow location access.');
+      setLocationLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          let address = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
+            const data = await res.json();
+            address = data.display_name || address;
+          } catch {}
+          
+          const newLocation = { latitude, longitude, address };
+          setLocation(newLocation);
+          setLocationLoading(false);
+          
+          submitBooking(newLocation);
+        },
+        (err) => {
+          setLocationError('Location permission denied. Please allow location access.');
+          setLocationLoading(false);
+          alert('Location permission is required to book a service.');
+        },
+        { timeout: 10000 }
+      );
       return;
     }
+
+    submitBooking(location);
+  };
+
+  const submitBooking = async (loc: any) => {
     setBookingStatus('SEARCHING');
     try {
+      const serviceTypeMapping: Record<string, string> = {
+        'Plumbing': 'PLUMBER',
+        'Electrical': 'ELECTRICIAN',
+        'Carpentry': 'CARPENTER',
+        'Painting': 'PAINTER'
+      };
+      const apiServiceType = serviceTypeMapping[selectedService] || 'OTHER';
+
       const response = await api.post('/bookings', {
-        serviceType: selectedService,
-        categoryType: selectedDomain,
+        serviceType: apiServiceType,
+        categoryType: selectedDomain === 'Quick Fix' ? 'PREDEFINED' : 'CUSTOM',
         bookingType: 'INSTANT',
-        problemDescription: problemDescription.trim(),
-        latitude: location.latitude,
-        longitude: location.longitude
+        customPromptText: problemDescription.trim(),
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        pincode: "560001", // Default pincode for now
+        addressText: loc.address || "Current Location"
       });
-      setBookingId(response.data.booking_id);
+      setBookingId(response.data.booking_id || response.data.data?.id); // adjust based on actual API response
     } catch (err) {
       console.error("Failed to create booking:", err);
       setBookingStatus('IDLE');
+      alert("Failed to create booking");
     }
   };
 
@@ -305,12 +345,19 @@ export default function CustomerApp() {
                         Retry
                       </button>
                     </>
-                  ) : (
+                  ) : location ? (
                     <>
                       <MapPin className="w-4 h-4 text-purple-500 shrink-0" />
-                      <span className="flex-1 truncate">{location?.address}</span>
+                      <span className="flex-1 truncate">{location.address}</span>
                       <button onClick={fetchLocation} className="text-xs font-bold text-purple-600 hover:text-purple-700 shrink-0">
                         Refresh
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1 text-slate-500">Location not shared yet</span>
+                      <button onClick={fetchLocation} className="text-xs font-bold text-purple-600 hover:text-purple-700 shrink-0">
+                        Share Location
                       </button>
                     </>
                   )}
@@ -323,7 +370,7 @@ export default function CustomerApp() {
               <div className="pt-2">
                 <button
                   onClick={handleBookService}
-                  disabled={!problemDescription.trim() || !location}
+                  disabled={!problemDescription.trim() || locationLoading}
                   className="w-full md:w-auto px-10 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-bold shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>

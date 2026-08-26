@@ -16,6 +16,12 @@ export default function WorkerLogin() {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  const [needsProfile, setNeedsProfile] = useState(false);
+  const [name, setName] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [tempToken, setTempToken] = useState<string | null>(null);
+  const [tempUser, setTempUser] = useState<any>(null);
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,11 +49,56 @@ export default function WorkerLogin() {
     try {
       const response = await api.post('/auth/verify-otp', { phone: phone.startsWith('+91') ? phone : `+91${phone}`, otp, session_id: sessionId });
       const { token, user } = response.data.data;
-      setAuth(token, user);
-      router.push("/worker");
+      if (!user.name) {
+        setNeedsProfile(true);
+        setTempToken(token);
+        setTempUser(user);
+      } else {
+        setAuth(token, user);
+        router.push("/worker");
+      }
     } catch (err: any) {
       console.error(err);
       setError("Invalid OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompleteProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    
+    if (!name.trim()) {
+      setError("Please enter your name");
+      return;
+    }
+    
+    if (!photo) {
+      setError("Please upload an ID/Photo for verification");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('photo', photo);
+
+      const response = await api.post('/auth/complete-profile', formData, {
+        headers: {
+          'Authorization': `Bearer ${tempToken}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      const updatedUser = response.data.user;
+      setAuth(tempToken!, updatedUser);
+      router.push("/worker");
+      
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.message || "Failed to complete profile.");
     } finally {
       setLoading(false);
     }
@@ -66,7 +117,7 @@ export default function WorkerLogin() {
               <p className="text-slate-400">Join the cooperative gig network</p>
             </div>
 
-            {!otpSent ? (
+            {!otpSent && !needsProfile ? (
               <form onSubmit={handleSendOTP} className="space-y-4">
                 {error && <div className="text-red-400 text-sm font-bold text-center">{error}</div>}
                 <div>
@@ -88,7 +139,7 @@ export default function WorkerLogin() {
                   {loading ? "Sending..." : "Send OTP"}
                 </button>
               </form>
-            ) : (
+            ) : !needsProfile ? (
               <form onSubmit={handleVerify} className="space-y-4">
                 {error && <div className="text-red-400 text-sm font-bold text-center">{error}</div>}
                 
@@ -124,6 +175,38 @@ export default function WorkerLogin() {
                   className="w-full text-slate-400 text-sm hover:text-green-400 transition-colors"
                 >
                   Back to Mobile Entry
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleCompleteProfile} className="space-y-4">
+                {error && <div className="text-red-400 text-sm font-bold text-center">{error}</div>}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Your Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-4 py-3 rounded-lg border border-slate-600 bg-slate-900/50 text-white focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all placeholder:text-slate-600"
+                    placeholder="Jane Doe"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Upload Verification ID / Photo</label>
+                  <input
+                    type="file"
+                    required
+                    accept="image/*"
+                    onChange={(e) => setPhoto(e.target.files ? e.target.files[0] : null)}
+                    className="w-full px-4 py-3 rounded-lg border border-slate-600 bg-slate-900/50 text-white focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-500/20 file:text-green-400 hover:file:bg-green-500/30"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-semibold py-3 rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all active:scale-[0.98] disabled:opacity-50 mt-4"
+                >
+                  {loading ? "Saving..." : "Complete Setup"}
                 </button>
               </form>
             )}

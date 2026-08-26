@@ -6,7 +6,10 @@ import { useStomp } from '@/hooks/useStomp';
 import { useAuthStore } from '@/store/useAuthStore';
 
 export default function WorkerApp() {
-  const [activeTab, setActiveTab] = useState<'JOBS' | 'WELFARE' | 'PROFILE'>('JOBS');
+  const [activeTab, setActiveTab] = useState<'JOBS' | 'BILLING' | 'WELFARE' | 'PROFILE'>('JOBS');
+  
+  const [profile, setProfile] = useState<any>(null);
+  const [billing, setBilling] = useState<any[]>([]);
   
   // Job States
   const [radius, setRadius] = useState(5);
@@ -38,6 +41,23 @@ export default function WorkerApp() {
       return () => sub.unsubscribe();
     }
   }, [client, connected, user?.id, jobStatus, activeTab]);
+
+  useEffect(() => {
+    const fetchWorkerData = async () => {
+      try {
+        const profRes = await api.get('/workers/profile');
+        setProfile(profRes.data.data);
+      } catch (err) { console.error(err); }
+      
+      try {
+        const billRes = await api.get('/workers/billing');
+        setBilling(billRes.data.data);
+      } catch (err) { console.error(err); }
+    };
+    if (user?.id) {
+      fetchWorkerData();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     // Local countdown fallback for demo
@@ -110,6 +130,13 @@ export default function WorkerApp() {
             Active Gigs
           </button>
           <button 
+            onClick={() => setActiveTab('BILLING')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-colors ${activeTab === 'BILLING' ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'}`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+            Past Billing
+          </button>
+          <button 
             onClick={() => setActiveTab('WELFARE')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-colors ${activeTab === 'WELFARE' ? 'bg-blue-500/10 text-blue-400' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'}`}
           >
@@ -140,7 +167,7 @@ export default function WorkerApp() {
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-16 flex items-center justify-between px-8 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md">
           <h1 className="text-xl font-bold text-white tracking-tight">
-            {activeTab === 'JOBS' ? 'Dispatch Control' : activeTab === 'WELFARE' ? 'Cooperative Welfare' : 'Professional Profile'}
+            {activeTab === 'JOBS' ? 'Dispatch Control' : activeTab === 'BILLING' ? 'Past Billing' : activeTab === 'WELFARE' ? 'Cooperative Welfare' : 'Professional Profile'}
           </h1>
           <button className="bg-red-500/10 text-red-500 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-500/20 transition-colors">
             Emergency SOS
@@ -325,10 +352,33 @@ export default function WorkerApp() {
                       >
                         Return to Radar
                       </button>
-                    </div>
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'BILLING' && (
+            <div className="max-w-4xl animate-in fade-in">
+              <h2 className="text-3xl font-bold text-white mb-8">Past Billing</h2>
+              {billing.length === 0 ? (
+                <p className="text-slate-400">No past bookings found.</p>
+              ) : (
+                <div className="space-y-4">
+                  {billing.map((b: any) => (
+                    <div key={b.id} className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex justify-between items-center">
+                      <div>
+                        <h3 className="font-bold text-white text-lg">{b.serviceType}</h3>
+                        <p className="text-sm text-slate-400">Completed on: {new Date(b.completedAt).toLocaleString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-green-400">₹{b.totalEarnings}</p>
+                        <p className="text-xs text-slate-500">Base: ₹{b.baseWage} | Mat: ₹{b.materialCost}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -367,14 +417,19 @@ export default function WorkerApp() {
             <div className="max-w-4xl animate-in fade-in">
               <div className="flex items-center gap-8 mb-10">
                 <div className="w-32 h-32 bg-slate-800 border-4 border-green-500 rounded-full flex items-center justify-center text-5xl overflow-hidden shadow-[0_0_30px_rgba(34,197,94,0.2)]">
-                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Ramesh" alt="Avatar" />
+                  {profile?.photoUrl ? (
+                    <img src={`http://localhost:8080${profile.photoUrl}`} alt="Worker Photo" className="w-full h-full object-cover" />
+                  ) : (
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Worker" alt="Avatar" />
+                  )}
                 </div>
                 <div>
-                  <h2 className="text-4xl font-extrabold text-white mb-2">Ramesh K.</h2>
+                  <h2 className="text-4xl font-extrabold text-white mb-2">{profile?.name || user?.name || "Professional"}</h2>
                   <p className="text-green-400 text-lg font-bold flex items-center gap-2">
                     <svg className="w-6 h-6 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
-                    4.9 / 5.0 Rating
+                    {profile?.rating?.toFixed(1) || "4.9"} / 5.0 Rating
                   </p>
+                  <p className="text-slate-400 font-medium mt-1">{profile?.totalJobs || 0} Total Jobs Completed</p>
                 </div>
               </div>
 

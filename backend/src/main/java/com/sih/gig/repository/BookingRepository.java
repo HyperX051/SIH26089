@@ -17,6 +17,8 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     List<Booking> findByWorkerId(UUID workerId);
 
+    List<Booking> findByWorkerIdAndStatus(UUID workerId, String status);
+
     @Query("SELECT b FROM Booking b " +
            "LEFT JOIN FETCH b.customer " +
            "LEFT JOIN FETCH b.worker w " +

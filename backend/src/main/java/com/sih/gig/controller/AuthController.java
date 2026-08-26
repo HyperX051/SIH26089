@@ -8,6 +8,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.multipart.MultipartFile;
+import com.sih.gig.entity.User;
 import java.util.Map;
 
 @RestController
@@ -33,5 +37,15 @@ public class AuthController {
     @PostMapping("/admin-login")
     public ResponseEntity<ApiResponse<?>> adminLogin(@RequestBody Map<String, String> req) {
         return ResponseEntity.ok(ApiResponse.ok(authService.adminLogin(req.get("email"), req.get("password"))));
+    }
+
+    /** POST /api/v1/auth/complete-profile */
+    @PostMapping(value = "/complete-profile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<?>> completeProfile(
+            @RequestParam("name") String name,
+            @RequestParam(value = "photo", required = false) MultipartFile photo,
+            Authentication auth) {
+        User currentUser = (User) auth.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(authService.completeProfile(currentUser, name, photo)));
     }
 }

@@ -33,6 +33,7 @@ public class SecurityConfig {
                 // Public endpoints
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/telephony/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                 // WebSocket handshake
                 .requestMatchers("/ws/**").permitAll()
                 // All other requests need JWT

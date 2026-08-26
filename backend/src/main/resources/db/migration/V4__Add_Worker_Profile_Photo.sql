@@ -1,0 +1,1 @@
+ALTER TABLE workers ADD COLUMN photo_url VARCHAR(255);

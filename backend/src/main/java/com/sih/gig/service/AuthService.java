@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.web.multipart.MultipartFile;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -42,6 +43,7 @@ public class AuthService {
     private final OtpHashUtil otpHashUtil;
     private final JwtUtil jwtUtil;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    private final FileStorageService fileStorageService;
 
     @Value("${app.otp.expiry-seconds}")
     private long otpExpirySeconds;
@@ -160,6 +162,39 @@ public class AuthService {
                         "id",   admin.getId().toString(),
                         "role", admin.getRole(),
                         "name", admin.getName() != null ? admin.getName() : ""
+                )
+        );
+    }
+
+    /**
+     * Complete profile for first-time login
+     */
+    @Transactional
+    public Map<String, Object> completeProfile(User currentUser, String name, MultipartFile photo) {
+        currentUser.setName(name);
+        userRepository.save(currentUser);
+
+        String photoUrl = null;
+        if ("WORKER".equals(currentUser.getRole())) {
+            Worker worker = workerRepository.findByUserId(currentUser.getId())
+                    .orElseThrow(() -> ApiException.notFound("Worker profile not found"));
+            
+            if (photo != null && !photo.isEmpty()) {
+                photoUrl = fileStorageService.storeFile(photo);
+                worker.setPhotoUrl(photoUrl);
+                workerRepository.save(worker);
+            } else {
+                photoUrl = worker.getPhotoUrl();
+            }
+        }
+
+        return Map.of(
+                "message", "Profile completed successfully",
+                "user", Map.of(
+                        "id", currentUser.getId().toString(),
+                        "role", currentUser.getRole(),
+                        "name", currentUser.getName() != null ? currentUser.getName() : "",
+                        "photoUrl", photoUrl != null ? photoUrl : ""
                 )
         );
     }
