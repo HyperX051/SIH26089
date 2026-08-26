@@ -55,7 +55,7 @@ public class UserController {
                     
                     // Trigger AI OCR Verification
                     Map<String, Object> aiResult = aiService.verifyNcct(
-                        new VerifyNcctRequest(worker.getId(), certUrl)
+                        new VerifyNcctRequest(String.valueOf(worker.getId()), certUrl)
                     );
                     
                     if (Boolean.TRUE.equals(aiResult.get("verified"))) {
