@@ -122,7 +122,7 @@ public class AiService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            String requestBody = String.format(\"\"\"
+            String requestBody = String.format("""
                 {
                   "contents": [{
                     "parts": [
@@ -136,7 +136,7 @@ public class AiService {
                     ]
                   }]
                 }
-                \"\"\", prompt, base64Image);
+                """, prompt, base64Image);
 
             HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
             ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
