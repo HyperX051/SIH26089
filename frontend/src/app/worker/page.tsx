@@ -353,6 +353,7 @@ export default function WorkerApp() {
                         Return to Radar
                       </button>
                   </div>
+                  </div>
                 )}
               </div>
             </div>
