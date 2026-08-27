@@ -7,11 +7,25 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
+
+const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
+
+const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+};
 
 export default function WorkerApp() {
   const router = useRouter();
   const { user, token, logout } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'JOBS' | 'BILLING' | 'WELFARE' | 'PROFILE'>('JOBS');
+  const [activeTab, setActiveTab] = useState<'JOBS' | 'ACTIVE_JOB' | 'BILLING' | 'WELFARE' | 'PROFILE'>('JOBS');
   
   const [profile, setProfile] = useState<any>(null);
   const [billing, setBilling] = useState<any[]>([]);
@@ -27,6 +41,7 @@ export default function WorkerApp() {
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [ocrData, setOcrData] = useState<any>(null);
   const [otp, setOtp] = useState("");
+  const [uploadingCredential, setUploadingCredential] = useState(false);
 
   const { client, connected } = useStomp();
   const [activeBookingId, setActiveBookingId] = useState<string | null>(null);
@@ -37,7 +52,49 @@ export default function WorkerApp() {
       router.push('/worker/login');
       return;
     }
+    
+    const fetchActiveJob = async () => {
+      try {
+        const res = await api.get('/bookings/worker/active', { headers: { Authorization: `Bearer ${token}` }});
+        if (res.data.data && res.data.data.length > 0) {
+          const activeJob = res.data.data[0];
+          setJobStatus(activeJob.status);
+          setActiveBookingId(activeJob.booking_id || activeJob.id);
+          setActiveJobDetails(activeJob);
+        } else {
+          // Fallback to localStorage if API is empty (though it shouldn't be if synced)
+          const savedJobStatus = localStorage.getItem('worker_jobStatus');
+          const savedBookingId = localStorage.getItem('worker_activeBookingId');
+          const savedJobDetails = localStorage.getItem('worker_activeJobDetails');
+          
+          if (savedJobStatus && savedJobStatus !== 'IDLE' && savedBookingId && savedJobDetails) {
+            setJobStatus(savedJobStatus as any);
+            setActiveBookingId(savedBookingId);
+            setActiveJobDetails(JSON.parse(savedJobDetails));
+          } else {
+            setJobStatus('IDLE');
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch active jobs:", err);
+      }
+    };
+
+    fetchActiveJob();
   }, [token, router]);
+
+  // Persist job state changes
+  useEffect(() => {
+    if (jobStatus !== 'IDLE' && activeBookingId && activeJobDetails) {
+      localStorage.setItem('worker_jobStatus', jobStatus);
+      localStorage.setItem('worker_activeBookingId', activeBookingId);
+      localStorage.setItem('worker_activeJobDetails', JSON.stringify(activeJobDetails));
+    } else {
+      localStorage.removeItem('worker_jobStatus');
+      localStorage.removeItem('worker_activeBookingId');
+      localStorage.removeItem('worker_activeJobDetails');
+    }
+  }, [jobStatus, activeBookingId, activeJobDetails]);
 
   // Bulletin Board: Fetch Available Jobs
   useEffect(() => {
@@ -117,6 +174,7 @@ export default function WorkerApp() {
       setActiveBookingId(job.booking_id);
       setActiveJobDetails(job);
       setJobStatus('ACCEPTED');
+      setActiveTab('ACTIVE_JOB');
     } catch (err: any) {
       console.error(err);
       alert(err.response?.data?.message || "Job is no longer available.");
@@ -152,6 +210,29 @@ export default function WorkerApp() {
     setAfterImage(null);
     setReceiptImage(null);
     setOcrData(null);
+    setActiveTab('JOBS');
+  };
+
+  const handleCredentialUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    if (!user?.id) return;
+    
+    setUploadingCredential(true);
+    try {
+      const res = await api.post('/ai/verify-credential', {
+        workerId: user.id,
+        certificateImageUrl: 'mock_uploaded_url'
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      
+      const aiData = res.data.data;
+      alert(`AI Credential Verification Complete:\nValid: ${aiData.is_valid}\nConfidence: ${aiData.confidence_score}\nNotes: ${aiData.notes}`);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to verify credential. Please try again.");
+    } finally {
+      setUploadingCredential(false);
+      e.target.value = '';
+    }
   };
 
   return (
@@ -161,14 +242,21 @@ export default function WorkerApp() {
       <aside className="w-64 bg-background border-r border-border hidden md:flex flex-col shrink-0">
         <div className="h-16 flex items-center px-6 border-b border-border">
           <Link href="/" className="flex items-center gap-2 cursor-pointer">
-            <div className="w-8 h-8 bg-zinc-900 flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-            </div>
+          <div className="w-8 h-8 flex items-center justify-center bg-background rounded text-foreground font-black tracking-tighter text-lg shadow-[2px_2px_0px_rgba(0,0,0,1)] border border-border">
+            FN
+          </div>
             <span className="font-extrabold text-xl tracking-tight text-foreground uppercase">Worker</span>
           </Link>
         </div>
         
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <button 
+            onClick={() => setActiveTab('ACTIVE_JOB')}
+            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'ACTIVE_JOB' ? 'bg-zinc-900 text-white' : 'text-primary hover:bg-zinc-200 hover:text-foreground'}`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            Active Job
+          </button>
           {[
             { id: 'JOBS', label: 'Bulletin Board', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
             { id: 'BILLING', label: 'Past Billing', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
@@ -202,7 +290,7 @@ export default function WorkerApp() {
       <main className="flex-1 flex flex-col h-screen overflow-hidden bg-card">
         <header className="h-16 flex items-center justify-between px-8 border-b border-border bg-card shrink-0">
           <h1 className="text-xl font-extrabold text-foreground tracking-tight">
-            {activeTab === 'JOBS' ? 'Dispatch Radar' : activeTab === 'BILLING' ? 'Past Billing' : activeTab === 'WELFARE' ? 'Cooperative Welfare' : 'Professional Profile'}
+            {activeTab === 'JOBS' ? 'Dispatch Radar' : activeTab === 'ACTIVE_JOB' ? 'Execution Workflow' : activeTab === 'BILLING' ? 'Past Billing' : activeTab === 'WELFARE' ? 'Cooperative Welfare' : 'Professional Profile'}
           </h1>
           {jobStatus !== 'IDLE' && jobStatus !== 'COMPLETED' && (
             <button 
@@ -224,12 +312,11 @@ export default function WorkerApp() {
         <div className="flex-1 overflow-y-auto p-6 md:p-10">
           
           {activeTab === 'JOBS' && (
-            <div className="flex flex-col lg:flex-row gap-8 h-full">
+            <div className="w-full max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 h-full">
               
               {/* Left Panel: Available Gigs & Radar */}
               <div className="w-full lg:w-1/3 flex flex-col gap-6">
                 
-                {jobStatus === 'IDLE' && (
                   <>
                     <section className="bg-background p-6 border border-border rounded-3xl shadow-sm">
                       <h2 className="font-extrabold text-foreground mb-4 flex items-center gap-2">
@@ -256,14 +343,26 @@ export default function WorkerApp() {
                     </section>
 
                     <section className="flex-1 overflow-y-auto">
-                      <h3 className="font-bold text-muted-foreground mb-4 uppercase tracking-wider text-xs">Available Jobs ({availableJobs.length})</h3>
+                      <h3 className="font-bold text-muted-foreground mb-4 uppercase tracking-wider text-xs">Available Jobs</h3>
                       <div className="space-y-4">
-                        {availableJobs.length === 0 ? (
-                          <div className="bg-background p-8 border border-border rounded-2xl text-center text-muted-foreground text-sm font-medium">
-                            No jobs currently available in your area.
-                          </div>
-                        ) : (
-                          availableJobs.map((job, idx) => (
+                        {(() => {
+                          const wLat = profile?.latitude || 12.9716;
+                          const wLng = profile?.longitude || 77.5946;
+                          const filteredJobs = availableJobs.filter(job => {
+                            if (!job.latitude || !job.longitude) return true;
+                            const dist = haversineKm(wLat, wLng, job.latitude, job.longitude);
+                            return dist <= radius;
+                          });
+
+                          if (filteredJobs.length === 0) {
+                            return (
+                              <div className="bg-background p-8 border border-border rounded-2xl text-center text-muted-foreground text-sm font-medium">
+                                No jobs currently available in your area.
+                              </div>
+                            );
+                          }
+
+                          return filteredJobs.map((job, idx) => (
                             <div key={job.booking_id || idx} className="bg-card p-5 border border-border rounded-2xl hover:border-border transition-colors shadow-sm hover:shadow-md">
                               <div className="flex justify-between items-start mb-4">
                                 <div>
@@ -279,159 +378,221 @@ export default function WorkerApp() {
                               </div>
                               <button 
                                 onClick={() => acceptGig(job)}
-                                className="w-full bg-zinc-900 hover:bg-primary text-primary-foreground text-white font-bold py-3 rounded-xl transition-colors text-sm uppercase tracking-wider shadow-sm"
+                                disabled={jobStatus !== 'IDLE'}
+                                className={`w-full font-bold py-3 rounded-xl transition-colors text-sm uppercase tracking-wider shadow-sm ${jobStatus !== 'IDLE' ? 'bg-zinc-200 text-muted-foreground cursor-not-allowed' : 'bg-zinc-900 hover:bg-primary text-primary-foreground text-white'}`}
                               >
-                                Accept Job
+                                {jobStatus !== 'IDLE' ? 'Finish Active Job First' : 'Accept Job'}
                               </button>
                             </div>
-                          ))
-                        )}
+                          ));
+                        })()}
                       </div>
                     </section>
                   </>
-                )}
-
-                {(jobStatus !== 'IDLE' && jobStatus !== 'COMPLETED') && (
-                  <div className="bg-card p-6 border border-border rounded-3xl shadow-[4px_4px_0px_rgba(0,0,0,1)]">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-10 h-10 bg-primary text-primary-foreground text-white flex items-center justify-center">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                      </div>
-                      <div>
-                        <h2 className="font-extrabold text-foreground">{activeJobDetails?.service_type || 'Service'} Request</h2>
-                        <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Accepted Job</p>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-background p-4 border border-border rounded-xl mb-6 shadow-sm">
-                      <div className="flex justify-between text-sm mb-2"><span className="text-muted-foreground">Distance</span><span className="text-foreground font-bold">Calculating...</span></div>
-                      <div className="flex justify-between text-sm"><span className="text-muted-foreground">Est. Payout</span><span className="text-black font-extrabold">₹{activeJobDetails?.estimated_wage || '450'}</span></div>
-                    </div>
-
-                    {jobStatus === 'ACCEPTED' && (
-                      <button onClick={() => setJobStatus('IN_PROGRESS')} className="w-full bg-primary text-primary-foreground py-4 text-xs font-bold text-white uppercase tracking-wider transition-colors rounded-xl shadow-md hover:bg-zinc-800">
-                        Arrived & Start Job
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+                </div>
 
               {/* Right Panel: Execution Workflow */}
               <div className="w-full lg:w-2/3 bg-background border border-border rounded-3xl p-8 flex flex-col relative overflow-hidden shadow-sm">
                 
-                {jobStatus === 'IDLE' && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center text-muted-foreground/70">
-                      <svg className="w-24 h-24 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
-                      <p className="text-lg font-bold">Map View Active</p>
-                      <p className="text-sm">Select a job from the Radar to begin.</p>
-                    </div>
+                  <div className="absolute inset-0 z-0 overflow-hidden rounded-3xl">
+                    <MapPicker 
+                      initialPosition={{ 
+                        lat: profile?.latitude || 12.9716, 
+                        lng: profile?.longitude || 77.5946 
+                      }} 
+                      onLocationSelect={() => {}}
+                      radius={radius}
+                    />
                   </div>
-                )}
+              </div>
+            </div>
+          )}
 
-                {jobStatus === 'IN_PROGRESS' && (
-                  <div className="max-w-2xl mx-auto w-full space-y-6 animate-in slide-in-from-bottom-4">
-                    <h2 className="text-2xl font-extrabold text-foreground mb-6">Job Execution Protocol</h2>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <section className="bg-card p-6 border border-border">
-                        <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider">1. AI Audit</h3>
-                        <div className="space-y-3">
-                          <button 
-                            onClick={() => setBeforeImage("captured")}
-                            className={`w-full py-4 border border-dashed flex flex-col items-center justify-center font-bold text-sm transition-all ${beforeImage ? 'border-border bg-primary text-primary-foreground text-white' : 'border-zinc-300 text-muted-foreground hover:bg-background'}`}
-                          >
-                            {beforeImage ? "Before: Uploaded" : "Capture Before Photo"}
-                          </button>
-                          <button 
-                            onClick={() => setAfterImage("captured")}
-                            className={`w-full py-4 border border-dashed flex flex-col items-center justify-center font-bold text-sm transition-all ${afterImage ? 'border-border bg-primary text-primary-foreground text-white' : 'border-zinc-300 text-muted-foreground hover:bg-background'}`}
-                          >
-                            {afterImage ? "After: Uploaded" : "Capture After Photo"}
-                          </button>
+          {activeTab === 'ACTIVE_JOB' && (
+            <div className="w-full max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 h-[calc(100vh-160px)]">
+              
+              {!activeBookingId ? (
+                <div className="w-full flex items-center justify-center bg-card border border-border rounded-3xl p-8 shadow-sm">
+                  <div className="text-center">
+                    <h2 className="text-2xl font-extrabold text-foreground mb-4">No Active Job</h2>
+                    <p className="text-muted-foreground text-sm font-medium mb-6">You don't have any ongoing jobs at the moment.</p>
+                    <button 
+                      onClick={() => setActiveTab('JOBS')}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 py-3 rounded-xl uppercase tracking-wider text-xs transition-colors shadow-sm"
+                    >
+                      Find Jobs on Bulletin Board
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="w-full lg:w-1/3 flex flex-col gap-6">
+                    {(jobStatus !== 'IDLE' && jobStatus !== 'COMPLETED') && (
+                      <div className="bg-card p-6 border border-border rounded-3xl shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-10 h-10 bg-primary text-primary-foreground text-white flex items-center justify-center">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                          </div>
+                          <div>
+                            <h2 className="font-extrabold text-foreground">{activeJobDetails?.service_type || 'Service'} Request</h2>
+                            <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Accepted Job</p>
+                          </div>
                         </div>
-                      </section>
+                        
+                        <div className="bg-background p-4 border border-border rounded-xl mb-6 shadow-sm">
+                          <div className="flex justify-between text-sm mb-2">
+                            <span className="text-muted-foreground">Distance</span>
+                            <span className="text-foreground font-bold">
+                              {activeJobDetails?.latitude ? 
+                                `${haversineKm(profile?.latitude || 12.9716, profile?.longitude || 77.5946, activeJobDetails.latitude, activeJobDetails.longitude).toFixed(1)} km` 
+                                : 'Unknown'
+                              }
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm"><span className="text-muted-foreground">Est. Payout</span><span className="text-black font-extrabold">₹{activeJobDetails?.estimated_wage || '450'}</span></div>
+                        </div>
 
-                      <section className="bg-card p-6 border border-border flex flex-col">
-                        <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider">2. Hardware Receipt</h3>
-                        <div className="flex-1 flex flex-col justify-center">
-                          {!receiptImage ? (
-                            <button onClick={() => { setReceiptImage("uploaded"); simulateOCR(); }} className="w-full py-8 bg-background flex flex-col items-center justify-center text-foreground font-bold border border-border hover:border-border transition-colors">
-                              <svg className="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                              Scan Bill via OCR
-                            </button>
-                          ) : (
-                            <div className="bg-background h-full p-4 border border-border text-sm">
-                              {ocrData ? (
-                                <div className="h-full flex flex-col justify-between">
-                                  <div>
-                                    <div className="flex justify-between text-muted-foreground text-xs mb-3 uppercase tracking-wider"><span>Item</span><span>Price</span></div>
-                                    {ocrData.items?.map((i: any, idx: number) => (
-                                      <div key={idx} className="flex justify-between font-mono text-foreground mb-1"><span>{i.name}</span><span>₹{i.price}</span></div>
-                                    ))}
-                                  </div>
-                                  <div className="border-t border-border pt-3 flex justify-between font-bold text-foreground">
-                                    <span>Total Added</span><span>₹{ocrData.total}</span>
-                                  </div>
-                                </div>
+                        {jobStatus === 'ACCEPTED' && (
+                          <button onClick={() => setJobStatus('IN_PROGRESS')} className="w-full bg-primary text-primary-foreground py-4 text-xs font-bold text-white uppercase tracking-wider transition-colors rounded-xl shadow-md hover:bg-zinc-800">
+                            Arrived & Start Job
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="w-full lg:w-2/3 bg-background border border-border rounded-3xl p-8 flex flex-col relative overflow-hidden shadow-sm">
+                    {jobStatus === 'ACCEPTED' && (
+                      <div className="absolute inset-0 z-0 overflow-hidden rounded-3xl">
+                        <div className="absolute top-4 right-4 z-10">
+                          <a 
+                            href={`https://www.google.com/maps/dir/?api=1&origin=${profile?.latitude || 12.9716},${profile?.longitude || 77.5946}&destination=${activeJobDetails?.latitude || 12.9716},${activeJobDetails?.longitude || 77.5946}`} 
+                            target="_blank"
+                            rel="noreferrer"
+                            className="bg-white hover:bg-zinc-100 text-black px-4 py-2 rounded-xl shadow-lg border border-border font-bold text-sm uppercase tracking-wider flex items-center gap-2 transition-colors"
+                          >
+                            <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                            Open in Google Maps
+                          </a>
+                        </div>
+                        <MapPicker 
+                          initialPosition={{ 
+                            lat: profile?.latitude || 12.9716, 
+                            lng: profile?.longitude || 77.5946 
+                          }} 
+                          destinationPosition={{
+                            lat: activeJobDetails?.latitude || 12.9716, 
+                            lng: activeJobDetails?.longitude || 77.5946 
+                          }}
+                          onLocationSelect={() => {}}
+                        />
+                      </div>
+                    )}
+
+                    {jobStatus === 'IN_PROGRESS' && (
+                      <div className="max-w-2xl mx-auto w-full space-y-6 animate-in slide-in-from-bottom-4">
+                        <h2 className="text-2xl font-extrabold text-foreground mb-6">Job Execution Protocol</h2>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <section className="bg-card p-6 border border-border">
+                            <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider">1. AI Audit</h3>
+                            <div className="space-y-3">
+                              <button 
+                                onClick={() => setBeforeImage("captured")}
+                                className={`w-full py-4 border border-dashed flex flex-col items-center justify-center font-bold text-sm transition-all ${beforeImage ? 'border-border bg-primary text-primary-foreground text-white' : 'border-zinc-300 text-muted-foreground hover:bg-background'}`}
+                              >
+                                {beforeImage ? "Before: Uploaded" : "Capture Before Photo"}
+                              </button>
+                              <button 
+                                onClick={() => setAfterImage("captured")}
+                                className={`w-full py-4 border border-dashed flex flex-col items-center justify-center font-bold text-sm transition-all ${afterImage ? 'border-border bg-primary text-primary-foreground text-white' : 'border-zinc-300 text-muted-foreground hover:bg-background'}`}
+                              >
+                                {afterImage ? "After: Uploaded" : "Capture After Photo"}
+                              </button>
+                            </div>
+                          </section>
+
+                          <section className="bg-card p-6 border border-border flex flex-col">
+                            <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider">2. Hardware Receipt</h3>
+                            <div className="flex-1 flex flex-col justify-center">
+                              {!receiptImage ? (
+                                <button onClick={() => { setReceiptImage("uploaded"); simulateOCR(); }} className="w-full py-8 bg-background flex flex-col items-center justify-center text-foreground font-bold border border-border hover:border-border transition-colors">
+                                  <svg className="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                  Scan Bill via OCR
+                                </button>
                               ) : (
-                                <div className="h-full flex items-center justify-center text-muted-foreground text-xs font-bold uppercase tracking-wider animate-pulse">Running AI OCR...</div>
+                                <div className="bg-background h-full p-4 border border-border text-sm">
+                                  {ocrData ? (
+                                    <div className="h-full flex flex-col justify-between">
+                                      <div>
+                                        <div className="flex justify-between text-muted-foreground text-xs mb-3 uppercase tracking-wider"><span>Item</span><span>Price</span></div>
+                                        {ocrData.items?.map((i: any, idx: number) => (
+                                          <div key={idx} className="flex justify-between font-mono text-foreground mb-1"><span>{i.name}</span><span>₹{i.price}</span></div>
+                                        ))}
+                                      </div>
+                                      <div className="border-t border-border pt-3 flex justify-between font-bold text-foreground">
+                                        <span>Total Added</span><span>₹{ocrData.total}</span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="h-full flex items-center justify-center text-muted-foreground text-xs font-bold uppercase tracking-wider animate-pulse">Running AI OCR...</div>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          )}
+                          </section>
                         </div>
-                      </section>
-                    </div>
 
-                    <section className="bg-card p-6 border border-border">
-                      <div className="mb-4">
-                        <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">3. Mutual Closure</h3>
-                        <p className="text-xs text-muted-foreground font-medium">Ask the customer for their 6-digit closure OTP.</p>
+                        <section className="bg-card p-6 border border-border">
+                          <div className="mb-4">
+                            <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">3. Mutual Closure</h3>
+                            <p className="text-xs text-muted-foreground font-medium">Ask the customer for their 6-digit closure OTP.</p>
+                          </div>
+                          <div className="flex gap-4">
+                            <input
+                              type="text"
+                              maxLength={6}
+                              placeholder="0 0 0 0 0 0"
+                              className="flex-1 bg-background border border-border px-6 py-4 text-center tracking-[0.5em] font-mono text-2xl text-foreground focus:border-border focus:outline-none transition-colors"
+                              value={otp}
+                              onChange={(e) => setOtp(e.target.value)}
+                            />
+                            <button 
+                              onClick={verifyOTP}
+                              disabled={otp.length !== 6 || !beforeImage || !afterImage}
+                              className="px-8 bg-primary text-primary-foreground disabled:bg-zinc-200 disabled:text-muted-foreground/70 text-white font-bold transition-all text-sm uppercase tracking-wider hover:bg-zinc-800"
+                            >
+                              Verify & Close
+                            </button>
+                          </div>
+                        </section>
                       </div>
-                      <div className="flex gap-4">
-                        <input
-                          type="text"
-                          maxLength={6}
-                          placeholder="0 0 0 0 0 0"
-                          className="flex-1 bg-background border border-border px-6 py-4 text-center tracking-[0.5em] font-mono text-2xl text-foreground focus:border-border focus:outline-none transition-colors"
-                          value={otp}
-                          onChange={(e) => setOtp(e.target.value)}
-                        />
-                        <button 
-                          onClick={verifyOTP}
-                          disabled={otp.length !== 6 || !beforeImage || !afterImage}
-                          className="px-8 bg-primary text-primary-foreground disabled:bg-zinc-200 disabled:text-muted-foreground/70 text-white font-bold transition-all text-sm uppercase tracking-wider hover:bg-zinc-800"
-                        >
-                          Verify & Close
-                        </button>
-                      </div>
-                    </section>
-                  </div>
-                )}
+                    )}
 
-                {jobStatus === 'COMPLETED' && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-card/90 backdrop-blur-sm z-10 p-4">
-                    <div className="bg-card border border-border p-10 text-center max-w-md w-full shadow-[8px_8px_0px_rgba(0,0,0,1)] animate-in zoom-in-95">
-                      <h2 className="text-3xl font-extrabold text-foreground mb-2">Job Completed!</h2>
-                      <p className="text-muted-foreground text-sm mb-8 font-medium">Funds have been added to your escrow.</p>
-                      
-                      <div className="bg-background p-6 text-sm text-zinc-700 font-mono text-left mb-8 border border-border">
-                        <div className="flex justify-between mb-3"><span>Base Wage:</span><span className="font-bold text-black">₹{activeJobDetails?.estimated_wage || '450.00'}</span></div>
-                        <div className="flex justify-between mb-4 text-muted-foreground"><span>Welfare Deduction:</span><span>-₹22.50</span></div>
-                        <div className="border-t border-border pt-4 flex justify-between font-extrabold text-lg text-black"><span>Net Settlement:</span><span>₹{(parseFloat(activeJobDetails?.estimated_wage || '450') - 22.50).toFixed(2)}</span></div>
+                    {jobStatus === 'COMPLETED' && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-card/90 backdrop-blur-sm z-10 p-4">
+                        <div className="bg-card border border-border p-10 text-center max-w-md w-full shadow-[8px_8px_0px_rgba(0,0,0,1)] animate-in zoom-in-95">
+                          <h2 className="text-3xl font-extrabold text-foreground mb-2">Job Completed!</h2>
+                          <p className="text-muted-foreground text-sm mb-8 font-medium">Funds have been added to your escrow.</p>
+                          
+                          <div className="bg-background p-6 text-sm text-zinc-700 font-mono text-left mb-8 border border-border">
+                            <div className="flex justify-between mb-3"><span>Base Wage:</span><span className="font-bold text-black">₹{activeJobDetails?.estimated_wage || '450.00'}</span></div>
+                            <div className="flex justify-between mb-4 text-muted-foreground"><span>Welfare Deduction:</span><span>-₹22.50</span></div>
+                            <div className="border-t border-border pt-4 flex justify-between font-extrabold text-lg text-black"><span>Net Settlement:</span><span>₹{(parseFloat(activeJobDetails?.estimated_wage || '450') - 22.50).toFixed(2)}</span></div>
+                          </div>
+                          
+                          <button 
+                            onClick={resetJobState} 
+                            className="w-full bg-primary text-primary-foreground py-4 font-bold text-white uppercase tracking-wider transition-colors hover:bg-zinc-800"
+                          >
+                            Return to Radar
+                          </button>
+                        </div>
                       </div>
-                      
-                      <button 
-                        onClick={resetJobState} 
-                        className="w-full bg-primary text-primary-foreground py-4 font-bold text-white uppercase tracking-wider transition-colors hover:bg-zinc-800"
-                      >
-                        Return to Radar
-                      </button>
-                    </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           )}
 
@@ -547,9 +708,16 @@ export default function WorkerApp() {
                   </div>
                   
                   <div className="mt-8 pt-6 border-t border-border">
-                    <button className="w-full border border-dashed border-zinc-300 text-muted-foreground hover:bg-background hover:text-foreground hover:border-border font-bold text-xs uppercase tracking-wider py-4 transition-all">
-                      + Upload New Credential / License
-                    </button>
+                    <label className={`w-full border border-dashed flex items-center justify-center border-zinc-300 text-muted-foreground hover:bg-background hover:text-foreground hover:border-border font-bold text-xs uppercase tracking-wider py-4 transition-all cursor-pointer ${uploadingCredential ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      {uploadingCredential ? 'Verifying with AI...' : '+ Upload New Credential / License'}
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*,.pdf" 
+                        disabled={uploadingCredential}
+                        onChange={handleCredentialUpload}
+                      />
+                    </label>
                   </div>
                 </section>
               </div>

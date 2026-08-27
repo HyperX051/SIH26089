@@ -58,8 +58,8 @@ export default function CustomerDashboard() {
       {/* Header */}
       <header className="h-16 flex items-center justify-between px-8 bg-background border-b border-border shrink-0 transition-colors duration-300">
         <Link href="/" className="flex items-center gap-3 cursor-pointer">
-          <div className="w-8 h-8 bg-primary flex items-center justify-center rounded-lg shadow-sm">
-            <svg className="w-5 h-5 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+          <div className="w-8 h-8 flex items-center justify-center bg-background rounded text-foreground font-black tracking-tighter text-lg shadow-[2px_2px_0px_rgba(0,0,0,1)] border border-border mr-3">
+            FN
           </div>
           <span className="font-extrabold text-xl tracking-tight text-foreground uppercase">FixNow</span>
         </Link>

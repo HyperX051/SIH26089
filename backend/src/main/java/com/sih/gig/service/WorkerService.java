@@ -95,6 +95,8 @@ public class WorkerService {
         map.put("name", currentUser.getName() != null ? currentUser.getName() : "");
         map.put("phone", currentUser.getPhone());
         map.put("photoUrl", worker.getPhotoUrl() != null ? worker.getPhotoUrl() : "");
+        map.put("latitude", worker.getLatitude());
+        map.put("longitude", worker.getLongitude());
         map.put("serviceRadiusKm", worker.getServiceRadiusKm());
         map.put("isAvailable", worker.getIsAvailable());
         map.put("rating", worker.getRating());

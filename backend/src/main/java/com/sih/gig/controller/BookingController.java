@@ -10,11 +10,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.sih.gig.service.FileStorageService;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -62,9 +65,17 @@ public class BookingController {
 
     /** GET /api/v1/bookings/customer */
     @GetMapping("/customer")
-    public ResponseEntity<ApiResponse<?>> getCustomerBookings(Authentication auth) {
-        User currentUser = (User) auth.getPrincipal();
-        return ResponseEntity.ok(ApiResponse.ok(bookingService.getCustomerBookings(currentUser)));
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCustomerBookings(Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(bookingService.getCustomerBookings(user)));
+    }
+
+    @GetMapping("/worker/active")
+    @PreAuthorize("hasRole('WORKER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getWorkerActiveBookings(Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(bookingService.getWorkerActiveBookings(user)));
     }
 
     /** POST /api/v1/bookings/:id/cancel */

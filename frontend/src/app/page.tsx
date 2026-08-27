@@ -16,24 +16,24 @@ const DynamicMapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: 
 type BookingStatus = 'IDLE' | 'SEARCHING' | 'ACCEPTED' | 'COMPLETED' | 'FEEDBACK';
 
 const CATEGORIES = [
-  { id: 'AC_REPAIR', name: "AC Repair", icon: <ThermometerSnowflake className="w-6 h-6" /> },
-  { id: 'CLEANING', name: "Deep Cleaning", icon: <SprayCan className="w-6 h-6" /> },
-  { id: 'PLUMBER', name: "Plumbing", icon: <Wrench className="w-6 h-6" /> },
-  { id: 'ELECTRICIAN', name: "Electrician", icon: <Zap className="w-6 h-6" /> },
-  { id: 'CARPENTER', name: "Carpentry", icon: <Hammer className="w-6 h-6" /> },
-  { id: 'PAINTER', name: "Painting", icon: <Paintbrush className="w-6 h-6" /> },
-  { id: 'PEST_CONTROL', name: "Pest Control", icon: <Bug className="w-6 h-6" /> },
-  { id: 'CAR_MECHANIC', name: "Car Mechanic", icon: <Car className="w-6 h-6" /> },
-  { id: 'APPLIANCE', name: "Appliances", icon: <MonitorSmartphone className="w-6 h-6" /> },
-  { id: 'ROOFING', name: "Roofing", icon: <ShieldCheck className="w-6 h-6" /> },
-  { id: 'HANDYMAN', name: "Handyman", icon: <Wrench className="w-6 h-6" /> },
-  { id: 'LAPTOP_REPAIR', name: "Laptop Repair", icon: <MonitorSmartphone className="w-6 h-6" /> },
-  { id: 'WASHING_MACHINE', name: "Washing Machine", icon: <Zap className="w-6 h-6" /> },
-  { id: 'REFRIGERATOR', name: "Refrigerator", icon: <ThermometerSnowflake className="w-6 h-6" /> },
-  { id: 'SOFA_CLEANING', name: "Sofa Cleaning", icon: <SprayCan className="w-6 h-6" /> },
-  { id: 'WATER_PURIFIER', name: "Water Purifier", icon: <Wrench className="w-6 h-6" /> },
-  { id: 'GEYSER_REPAIR', name: "Geyser Repair", icon: <Zap className="w-6 h-6" /> },
-  { id: 'BATHROOM_CLEANING', name: "Bath Cleaning", icon: <SprayCan className="w-6 h-6" /> },
+  { id: 'AC_REPAIR', name: "AC Repair", icon: <ThermometerSnowflake className="w-6 h-6" />, basePrice: 399 },
+  { id: 'CLEANING', name: "Deep Cleaning", icon: <SprayCan className="w-6 h-6" />, basePrice: 799 },
+  { id: 'PLUMBER', name: "Plumbing", icon: <Wrench className="w-6 h-6" />, basePrice: 199 },
+  { id: 'ELECTRICIAN', name: "Electrician", icon: <Zap className="w-6 h-6" />, basePrice: 199 },
+  { id: 'CARPENTER', name: "Carpentry", icon: <Hammer className="w-6 h-6" />, basePrice: 199 },
+  { id: 'PAINTER', name: "Painting", icon: <Paintbrush className="w-6 h-6" />, basePrice: 299 },
+  { id: 'PEST_CONTROL', name: "Pest Control", icon: <Bug className="w-6 h-6" />, basePrice: 499 },
+  { id: 'CAR_MECHANIC', name: "Car Mechanic", icon: <Car className="w-6 h-6" />, basePrice: 299 },
+  { id: 'APPLIANCE', name: "Appliances", icon: <MonitorSmartphone className="w-6 h-6" />, basePrice: 199 },
+  { id: 'ROOFING', name: "Roofing", icon: <ShieldCheck className="w-6 h-6" />, basePrice: 299 },
+  { id: 'HANDYMAN', name: "Handyman", icon: <Wrench className="w-6 h-6" />, basePrice: 199 },
+  { id: 'LAPTOP_REPAIR', name: "Laptop Repair", icon: <MonitorSmartphone className="w-6 h-6" />, basePrice: 299 },
+  { id: 'WASHING_MACHINE', name: "Washing Machine", icon: <Zap className="w-6 h-6" />, basePrice: 199 },
+  { id: 'REFRIGERATOR', name: "Refrigerator", icon: <ThermometerSnowflake className="w-6 h-6" />, basePrice: 199 },
+  { id: 'SOFA_CLEANING', name: "Sofa Cleaning", icon: <SprayCan className="w-6 h-6" />, basePrice: 399 },
+  { id: 'WATER_PURIFIER', name: "Water Purifier", icon: <Wrench className="w-6 h-6" />, basePrice: 199 },
+  { id: 'GEYSER_REPAIR', name: "Geyser Repair", icon: <Zap className="w-6 h-6" />, basePrice: 199 },
+  { id: 'BATHROOM_CLEANING', name: "Bath Cleaning", icon: <SprayCan className="w-6 h-6" />, basePrice: 299 },
 ];
 
 export default function Home() {
@@ -62,8 +62,6 @@ export default function Home() {
   const [locationError, setLocationError] = useState('');
   
   const [rating, setRating] = useState(0);
-  const [aiAssessing, setAiAssessing] = useState(false);
-  const [aiAssessment, setAiAssessment] = useState<any>(null);
 
   const fetchLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -103,20 +101,6 @@ export default function Home() {
       return () => sub.unsubscribe();
     }
   }, [client, connected, bookingId]);
-
-  const handleAiAssess = async () => {
-    if (!problemDescription.trim()) return;
-    setAiAssessing(true);
-    try {
-      const res = await api.post('/ai/assess-problem', { problemDescription });
-      setAiAssessment(res.data.data);
-    } catch (e) {
-      console.error(e);
-      alert("AI Assessment failed.");
-    } finally {
-      setAiAssessing(false);
-    }
-  };
 
   const handleBookService = async () => {
     if (!token) {
@@ -205,9 +189,9 @@ export default function Home() {
       {/* Navbar */}
       <header className="fixed top-0 w-full z-50 bg-background/90 backdrop-blur-md border-b border-border transition-colors duration-300">
         <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => {setSelectedService(null); setBookingStatus('IDLE'); setAiAssessment(null); setShowAllServices(false);}}>
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm">
-              <svg className="w-5 h-5 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => {setSelectedService(null); setBookingStatus('IDLE'); setShowAllServices(false);}}>
+            <div className="w-8 h-8 flex items-center justify-center bg-background rounded text-foreground font-black tracking-tighter text-lg shadow-[2px_2px_0px_rgba(0,0,0,1)] border border-border">
+              FN
             </div>
             <span className="font-extrabold text-xl tracking-tight text-foreground">FixNow</span>
           </div>
@@ -306,7 +290,7 @@ export default function Home() {
         {/* State: Booking Form */}
         {selectedService && bookingStatus === 'IDLE' && (
           <div className="max-w-2xl mx-auto border border-border dark:border-border rounded-3xl bg-card dark:bg-card p-8 md:p-10 animate-in slide-in-from-bottom-4 shadow-xl">
-            <button onClick={() => { setSelectedService(null); setAiAssessment(null); }} className="text-xs font-bold text-muted-foreground hover:text-foreground dark:hover:text-zinc-50 mb-8 uppercase tracking-wider flex items-center gap-2 transition-colors">
+            <button onClick={() => { setSelectedService(null); }} className="text-xs font-bold text-muted-foreground hover:text-foreground dark:hover:text-zinc-50 mb-8 uppercase tracking-wider flex items-center gap-2 transition-colors">
               &larr; Back to Services
             </button>
             
@@ -362,14 +346,6 @@ export default function Home() {
                     rows={4}
                     className="w-full bg-background dark:bg-background border border-border dark:border-border rounded-xl p-4 text-foreground  text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-all resize-none shadow-sm"
                   />
-                  <button 
-                    onClick={handleAiAssess}
-                    disabled={!problemDescription.trim() || aiAssessing}
-                    className="absolute bottom-3 right-3 flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-sm"
-                  >
-                    {aiAssessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <BrainCircuit className="w-3 h-3" />}
-                    {aiAssessing ? 'Analyzing...' : 'AI Assess'}
-                  </button>
                 </div>
                 
                 {/* Photo Upload */}
@@ -389,29 +365,6 @@ export default function Home() {
                     </span>
                   )}
                 </div>
-                
-                {/* AI Assessment Result */}
-                {aiAssessment && (
-                  <div className="mt-4 p-4 border border-border rounded-xl bg-background animate-in fade-in shadow-sm">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-                      <BrainCircuit className="w-4 h-4 text-foreground" /> AI Assessment
-                    </h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="block text-muted-foreground mb-1">Estimated Cost</span>
-                        <span className="font-bold text-foreground">{aiAssessment.estimated_cost_range}</span>
-                      </div>
-                      <div>
-                        <span className="block text-muted-foreground mb-1">Urgency</span>
-                        <span className={`font-bold ${aiAssessment.urgency === 'High' || aiAssessment.urgency === 'Critical' ? 'text-red-500' : 'text-foreground'}`}>{aiAssessment.urgency}</span>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="block text-muted-foreground mb-1">Recommended Tools</span>
-                        <span className="font-medium text-foreground">{aiAssessment.recommended_tools?.join(", ") || "Standard Tools"}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div>
@@ -452,6 +405,11 @@ export default function Home() {
                     Auto Detect
                   </button>
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between bg-muted/30 p-4 rounded-xl border border-border">
+                <span className="text-sm font-bold text-foreground">Estimated Base Price</span>
+                <span className="text-lg font-extrabold text-foreground">₹{CATEGORIES.find(c => c.id === selectedService)?.basePrice || 199}</span>
               </div>
 
               <button

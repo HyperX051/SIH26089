@@ -5,6 +5,9 @@ import { api } from '@/lib/api';
 import { useStomp } from '@/hooks/useStomp';
 import { useAuthStore } from '@/store/useAuthStore';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
 export default function AdminApp() {
   const [ledger, setLedger] = useState<{ grossTurnover: string; reserve: string; dividendPool: string } | null>(null);
@@ -190,10 +193,13 @@ export default function AdminApp() {
           <section className="bg-card border border-border rounded-3xl p-8 flex flex-col h-[400px] shadow-sm">
             <div className="flex justify-between items-center mb-6">
               <h2 className="font-extrabold text-xl text-foreground uppercase tracking-tight">Global Dispatch Map</h2>
-              <span className="bg-muted text-muted-foreground text-xs font-bold px-3 py-1 uppercase tracking-wider">Map pending</span>
+              <span className="bg-green-100 text-green-800 text-[10px] font-bold px-3 py-1 uppercase tracking-widest rounded-sm">Live</span>
             </div>
-            <div className="flex-1 bg-background flex items-center justify-center border border-border rounded-2xl">
-              <span className="font-bold bg-card px-4 py-2 border border-border text-black text-xs uppercase tracking-wider">Configure MAPBOX_TOKEN to enable</span>
+            <div className="flex-1 bg-background border border-border rounded-2xl relative overflow-hidden z-0">
+              <MapPicker 
+                initialPosition={{ lat: 12.9716, lng: 77.5946 }} 
+                onLocationSelect={() => {}} 
+              />
             </div>
           </section>
         </div>

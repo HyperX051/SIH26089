@@ -245,6 +245,29 @@ public class BookingService {
                 .toList();
     }
 
+    public java.util.List<Map<String, Object>> getWorkerActiveBookings(User workerUser) {
+        Worker worker = workerRepository.findByUserId(workerUser.getId())
+            .orElseThrow(() -> ApiException.notFound("Worker profile not found"));
+        
+        java.util.List<Booking> active = new java.util.ArrayList<>();
+        active.addAll(bookingRepository.findByWorkerIdAndStatus(worker.getId(), "ACCEPTED"));
+        active.addAll(bookingRepository.findByWorkerIdAndStatus(worker.getId(), "ARRIVED"));
+        active.addAll(bookingRepository.findByWorkerIdAndStatus(worker.getId(), "IN_PROGRESS"));
+        
+        return active.stream().map(b -> {
+            java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
+            map.put("booking_id", b.getId().toString());
+            map.put("service_type", b.getServiceType());
+            map.put("latitude", b.getLatitude());
+            map.put("longitude", b.getLongitude());
+            map.put("estimated_wage", b.getBaseWage());
+            map.put("scheduled_for", b.getScheduledFor() != null ? b.getScheduledFor().toString() : "");
+            map.put("custom_prompt_text", b.getCustomPromptText());
+            map.put("status", b.getStatus());
+            return map;
+        }).toList();
+    }
+
     /**
      * GET /api/v1/bookings/available
      */
@@ -258,6 +281,7 @@ public class BookingService {
                     map.put("longitude", b.getLongitude());
                     map.put("estimated_wage", b.getBaseWage());
                     map.put("scheduled_for", b.getScheduledFor() != null ? b.getScheduledFor().toString() : "");
+                    map.put("custom_prompt_text", b.getCustomPromptText());
                     return map;
                 })
                 .toList();
