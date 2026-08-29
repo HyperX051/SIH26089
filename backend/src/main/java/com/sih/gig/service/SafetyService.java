@@ -37,8 +37,8 @@ public class SafetyService {
         SosAlert sos = SosAlert.builder()
                 .booking(booking)
                 .user(currentUser)
-                .latitude(BigDecimal.valueOf(req.getLatitude()))
-                .longitude(BigDecimal.valueOf(req.getLongitude()))
+                .latitude(booking.getLatitude() != null ? booking.getLatitude() : BigDecimal.ZERO)
+                .longitude(booking.getLongitude() != null ? booking.getLongitude() : BigDecimal.ZERO)
                 .telemetry(req.getTelemetry())
                 .status("OPEN")
                 .dispatchedAuthorities(true)
@@ -51,8 +51,8 @@ public class SafetyService {
                 saved.getId(),
                 booking.getId(),
                 currentUser.getId(),
-                req.getLatitude(),
-                req.getLongitude()
+                booking.getLatitude() != null ? booking.getLatitude().doubleValue() : 0.0,
+                booking.getLongitude() != null ? booking.getLongitude().doubleValue() : 0.0
         );
 
         log.warn("🆘 SOS ALERT triggered: sosId={} bookingId={} userId={}",

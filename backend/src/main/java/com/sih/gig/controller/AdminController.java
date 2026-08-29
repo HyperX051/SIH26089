@@ -18,4 +18,58 @@ public class AdminController {
     public ResponseEntity<ApiResponse<?>> getDividendLedger() {
         return ResponseEntity.ok(ApiResponse.ok(adminService.getDividendLedger()));
     }
+
+    /** GET /api/v1/admin/stats */
+    @GetMapping("/stats")
+    public ResponseEntity<ApiResponse<?>> getGlobalStats() {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.getGlobalStats()));
+    }
+
+    /** GET /api/v1/admin/stats/distribution */
+    @GetMapping("/stats/distribution")
+    public ResponseEntity<ApiResponse<?>> getServiceDistribution() {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.getServiceDistribution()));
+    }
+
+    /** GET /api/v1/admin/workers/kyc-pending */
+    @GetMapping("/workers/kyc-pending")
+    public ResponseEntity<ApiResponse<?>> getPendingKyc() {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.getPendingKyc()));
+    }
+
+    /** GET /api/v1/admin/bookings/live */
+    @GetMapping("/bookings/live")
+    public ResponseEntity<ApiResponse<?>> getLiveBookings() {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.getLiveBookings()));
+    }
+
+    /** GET /api/v1/admin/workers/active */
+    @GetMapping("/workers/active")
+    public ResponseEntity<ApiResponse<?>> getActiveWorkers() {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.getActiveWorkers()));
+    }
+
+    /** GET /api/v1/admin/bookings */
+    @GetMapping("/bookings")
+    public ResponseEntity<ApiResponse<?>> getAllBookings() {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.getAllBookings()));
+    }
+
+    /** GET /api/v1/admin/sos */
+    @GetMapping("/sos")
+    public ResponseEntity<ApiResponse<?>> getSosAlerts() {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.getSosAlerts()));
+    }
+
+    /** POST /api/v1/admin/sos/{id}/resolve */
+    @PostMapping("/sos/{id}/resolve")
+    public ResponseEntity<ApiResponse<?>> resolveSosAlert(@PathVariable java.util.UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.resolveSosAlert(id)));
+    }
+
+    /** GET /api/v1/admin/cooperative/ledger-breakdown */
+    @GetMapping("/cooperative/ledger-breakdown")
+    public ResponseEntity<ApiResponse<?>> getLedgerBreakdown() {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.getLedgerBreakdown()));
+    }
 }

@@ -20,6 +20,7 @@ interface MapPickerProps {
   onLocationSelect: (lat: number, lng: number) => void;
   radius?: number;
   destinationPosition?: { lat: number; lng: number } | null;
+  markers?: { id: string; lat: number; lng: number; type: 'SOS' | 'BOOKING'; popup?: string }[];
 }
 
 function LocationMarker({ position, onLocationSelect }: { position: any, onLocationSelect: any }) {
@@ -34,7 +35,7 @@ function LocationMarker({ position, onLocationSelect }: { position: any, onLocat
   );
 }
 
-export default function MapPicker({ initialPosition, onLocationSelect, radius, destinationPosition }: MapPickerProps) {
+export default function MapPicker({ initialPosition, onLocationSelect, radius, destinationPosition, markers = [] }: MapPickerProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [route, setRoute] = useState<[number, number][]>([]);
   const defaultPos = { lat: 12.9716, lng: 77.5946 }; // Bangalore default
@@ -105,6 +106,19 @@ export default function MapPicker({ initialPosition, onLocationSelect, radius, d
             />
           </>
         )}
+        {markers.map(m => (
+          <Marker 
+            key={m.id} 
+            position={{ lat: m.lat, lng: m.lng }}
+            icon={m.type === 'SOS' ? L.divIcon({
+              className: 'pulsing-sos-marker',
+              html: '<img src="https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png" class="absolute top-0 left-0" style="width: 25px; height: 41px;" /><div class="ringring"></div><div class="circle"></div>',
+              iconSize: [25, 41],
+              iconAnchor: [12, 41]
+            }) : defaultIcon}
+          >
+          </Marker>
+        ))}
       </MapContainer>
     </div>
   );

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,4 +28,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     Optional<Booking> findByIdWithDetails(@Param("id") UUID id);
 
     List<Booking> findByStatus(String status);
+
+    @Query("SELECT COALESCE(SUM(b.baseWage + b.materialCost), 0) FROM Booking b WHERE b.status = 'COMPLETED'")
+    BigDecimal sumCompletedBookingTurnover();
 }

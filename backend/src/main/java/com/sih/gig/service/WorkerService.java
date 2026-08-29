@@ -7,6 +7,7 @@ import com.sih.gig.entity.Worker;
 import com.sih.gig.exception.ApiException;
 import com.sih.gig.repository.BookingRepository;
 import com.sih.gig.repository.WorkerRepository;
+import com.sih.gig.websocket.SocketBroadcaster;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ public class WorkerService {
 
     private final WorkerRepository workerRepository;
     private final BookingRepository bookingRepository;
+    private final SocketBroadcaster socketBroadcaster;
 
     private Worker getWorkerByUserId(UUID userId) {
         return workerRepository.findByUserId(userId)
@@ -56,6 +58,8 @@ public class WorkerService {
             worker.setLongitude(BigDecimal.valueOf(req.getLongitude()));
         }
         workerRepository.save(worker);
+        
+        socketBroadcaster.broadcastStatsUpdate();
 
         return Map.of(
                 "worker_id",    worker.getId().toString(),

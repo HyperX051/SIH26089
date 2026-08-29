@@ -45,7 +45,12 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
-  }, []);
+    if (user?.role === 'WORKER') {
+      router.push('/worker');
+    } else if (user?.role === 'ADMIN') {
+      router.push('/admin');
+    }
+  }, [user?.role, router]);
 
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [showAllServices, setShowAllServices] = useState(false);

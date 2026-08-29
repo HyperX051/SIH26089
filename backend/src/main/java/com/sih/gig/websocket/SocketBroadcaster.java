@@ -60,4 +60,11 @@ public class SocketBroadcaster {
                                "longitude",  longitude
                        )));
     }
+
+    // ─── ADMIN_STATS_UPDATE ───────────────────────────────────────────────────
+    public void broadcastStatsUpdate() {
+        log.debug("ADMIN_STATS_UPDATE → admin/stats");
+        template.convertAndSend("/topic/admin/stats",
+                Map.of("event", "ADMIN_STATS_UPDATE"));
+    }
 }

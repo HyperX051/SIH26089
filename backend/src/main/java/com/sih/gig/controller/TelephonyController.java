@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 /**
  * Exotel IVR Webhook Controller.
@@ -24,13 +25,14 @@ public class TelephonyController {
      * Exotel calls this when a new call comes in.
      * Params: From, CallSid, To
      */
-    @PostMapping(value = "/incoming",
-                 consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+    @RequestMapping(value = "/incoming",
+                 method = {RequestMethod.GET, RequestMethod.POST},
                  produces = MediaType.APPLICATION_XML_VALUE)
-    public ResponseEntity<String> handleIncoming(
-            @RequestParam(value = "From",    required = false) String from,
-            @RequestParam(value = "CallSid", required = false) String callSid,
-            @RequestParam(value = "To",      required = false) String to) {
+    public ResponseEntity<String> handleIncoming(@RequestParam Map<String, String> allParams) {
+
+        String from = allParams.getOrDefault("From", allParams.get("from"));
+        String callSid = allParams.getOrDefault("CallSid", allParams.get("callSid"));
+        String to = allParams.getOrDefault("To", allParams.get("to"));
 
         String xml = telephonyService.handleIncomingCall(from, callSid, to);
         return ResponseEntity.ok(xml);
@@ -41,14 +43,17 @@ public class TelephonyController {
      * Exotel calls this after caller presses a digit.
      * Params: CallSid, Digits
      */
-    @PostMapping(value = "/dtmf-handler",
-                 consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+    @RequestMapping(value = "/dtmf-handler",
+                 method = {RequestMethod.GET, RequestMethod.POST},
                  produces = MediaType.APPLICATION_XML_VALUE)
-    public ResponseEntity<String> handleDtmf(
-            @RequestParam(value = "CallSid", required = false) String callSid,
-            @RequestParam(value = "Digits",  required = false) String digits) {
+    public ResponseEntity<String> handleDtmf(@RequestParam Map<String, String> allParams) {
 
-        String xml = telephonyService.handleDtmf(callSid, digits);
+        // Exotel might pass parameters in lowercase or TitleCase depending on context
+        String fromPhone = allParams.getOrDefault("From", allParams.get("from"));
+        String digits = allParams.getOrDefault("Digits", allParams.get("digits"));
+        String serviceType = allParams.getOrDefault("service", "OTHER");
+
+        String xml = telephonyService.handleDtmf(fromPhone, digits, serviceType);
         return ResponseEntity.ok(xml);
     }
 }

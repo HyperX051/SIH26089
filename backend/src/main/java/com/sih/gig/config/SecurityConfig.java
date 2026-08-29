@@ -32,7 +32,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // Public endpoints
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/telephony/**").permitAll()
+                .requestMatchers("/api/v1/telephony/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                 // WebSocket handshake
                 .requestMatchers("/ws/**").permitAll()

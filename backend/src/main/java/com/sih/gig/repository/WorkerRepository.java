@@ -15,6 +15,11 @@ public interface WorkerRepository extends JpaRepository<Worker, UUID> {
 
     Optional<Worker> findByUserId(UUID userId);
 
+    List<Worker> findByApprovalStatus(String approvalStatus);
+
+    long countByIsAvailableTrue();
+    List<Worker> findByIsAvailableTrue();
+
     /**
      * PostGIS ST_DWithin geo-spatial dispatch query.
      * Finds available workers whose location is within their own service_radius_km

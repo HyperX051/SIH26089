@@ -77,6 +77,9 @@ public class Booking {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
+    @Column(name = "accepted_at")
+    private OffsetDateTime acceptedAt;
+
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = OffsetDateTime.now();

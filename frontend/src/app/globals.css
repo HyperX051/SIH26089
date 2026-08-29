@@ -74,3 +74,35 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Leaflet SOS Pulsing Marker */
+.pulsing-sos-marker {
+  position: relative;
+}
+.pulsing-sos-marker .circle {
+  width: 14px;
+  height: 14px;
+  background-color: #ef4444; /* red-500 */
+  border-radius: 50%;
+  position: absolute;
+  top: 13px; /* Center with Leaflet's default anchor (12, 41) */
+  left: 6px;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+}
+.pulsing-sos-marker .ringring {
+  border: 3px solid #ef4444;
+  border-radius: 50%;
+  height: 40px;
+  width: 40px;
+  position: absolute;
+  top: 0px;
+  left: -7px;
+  animation: pulsate 1.5s ease-out;
+  animation-iteration-count: infinite; 
+  opacity: 0;
+}
+@keyframes pulsate {
+  0% { transform: scale(0.1, 0.1); opacity: 0.0; }
+  50% { opacity: 1.0; }
+  100% { transform: scale(1.2, 1.2); opacity: 0.0; }
+}

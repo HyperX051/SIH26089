@@ -84,14 +84,17 @@ public class BookingService {
         Booking saved = bookingRepository.save(booking);
 
         // Broadcast to all workers
-        broadcaster.broadcastNewJob(Map.of(
-            "booking_id", saved.getId().toString(),
-            "service_type", saved.getServiceType(),
-            "latitude", saved.getLatitude(),
-            "longitude", saved.getLongitude(),
-            "scheduled_for", saved.getScheduledFor() != null ? saved.getScheduledFor().toString() : "",
-            "estimated_wage", saved.getBaseWage()
-        ));
+        java.util.Map<String, Object> broadcastPayload = new java.util.LinkedHashMap<>();
+        broadcastPayload.put("booking_id", saved.getId().toString());
+        broadcastPayload.put("service_type", saved.getServiceType());
+        broadcastPayload.put("latitude", saved.getLatitude());
+        broadcastPayload.put("longitude", saved.getLongitude());
+        broadcastPayload.put("scheduled_for", saved.getScheduledFor() != null ? saved.getScheduledFor().toString() : "");
+        broadcastPayload.put("estimated_wage", saved.getBaseWage());
+        broadcastPayload.put("pincode", saved.getPincode());
+        broadcastPayload.put("customer_phone", saved.getCustomer() != null ? saved.getCustomer().getPhone() : "");
+        broadcastPayload.put("address_text", saved.getAddressText());
+        broadcaster.broadcastNewJob(broadcastPayload);
 
         return new LinkedHashMap<>(Map.of(
                 "booking_id", saved.getId().toString(),
@@ -211,7 +214,7 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> ApiException.notFound("Booking not found"));
 
-        if (!"IN_PROGRESS".equals(booking.getStatus()) && !"ARRIVED".equals(booking.getStatus())) {
+        if (!"IN_PROGRESS".equals(booking.getStatus()) && !"ARRIVED".equals(booking.getStatus()) && !"ACCEPTED".equals(booking.getStatus())) {
             throw ApiException.badRequest("Booking is not in a closable state");
         }
 
@@ -245,6 +248,7 @@ public class BookingService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public java.util.List<Map<String, Object>> getWorkerActiveBookings(User workerUser) {
         Worker worker = workerRepository.findByUserId(workerUser.getId())
             .orElseThrow(() -> ApiException.notFound("Worker profile not found"));
@@ -264,6 +268,9 @@ public class BookingService {
             map.put("scheduled_for", b.getScheduledFor() != null ? b.getScheduledFor().toString() : "");
             map.put("custom_prompt_text", b.getCustomPromptText());
             map.put("status", b.getStatus());
+            map.put("pincode", b.getPincode());
+            map.put("customer_phone", b.getCustomer() != null ? b.getCustomer().getPhone() : "");
+            map.put("address_text", b.getAddressText());
             return map;
         }).toList();
     }
@@ -271,6 +278,7 @@ public class BookingService {
     /**
      * GET /api/v1/bookings/available
      */
+    @Transactional(readOnly = true)
     public java.util.List<Map<String, Object>> getAvailableBookings() {
         return bookingRepository.findByStatus("SEARCHING").stream()
                 .map(b -> {
@@ -282,6 +290,9 @@ public class BookingService {
                     map.put("estimated_wage", b.getBaseWage());
                     map.put("scheduled_for", b.getScheduledFor() != null ? b.getScheduledFor().toString() : "");
                     map.put("custom_prompt_text", b.getCustomPromptText());
+                    map.put("pincode", b.getPincode());
+                    map.put("customer_phone", b.getCustomer() != null ? b.getCustomer().getPhone() : "");
+                    map.put("address_text", b.getAddressText());
                     return map;
                 })
                 .toList();
@@ -302,8 +313,13 @@ public class BookingService {
         Worker worker = workerRepository.findByUserId(workerUser.getId())
                 .orElseThrow(() -> ApiException.notFound("Worker profile not found"));
                 
+        if (!Boolean.TRUE.equals(worker.getIsAvailable())) {
+            throw ApiException.badRequest("You must be online to accept jobs");
+        }
+                
         booking.setWorker(worker);
         booking.setStatus("ACCEPTED");
+        booking.setAcceptedAt(OffsetDateTime.now());
         bookingRepository.save(booking);
         
         broadcaster.sendStatusChanged(bookingId, "ACCEPTED");

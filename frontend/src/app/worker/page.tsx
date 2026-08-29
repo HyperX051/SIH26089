@@ -38,10 +38,11 @@ export default function WorkerApp() {
   // Job Execution States
   const [beforeImage, setBeforeImage] = useState<string | null>(null);
   const [afterImage, setAfterImage] = useState<string | null>(null);
-  const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [receiptImage, setReceiptImage] = useState<File | null>(null);
   const [ocrData, setOcrData] = useState<any>(null);
   const [otp, setOtp] = useState("");
   const [uploadingCredential, setUploadingCredential] = useState(false);
+  const [acceptingJobId, setAcceptingJobId] = useState<string | null>(null);
 
   const { client, connected } = useStomp();
   const [activeBookingId, setActiveBookingId] = useState<string | null>(null);
@@ -62,18 +63,9 @@ export default function WorkerApp() {
           setActiveBookingId(activeJob.booking_id || activeJob.id);
           setActiveJobDetails(activeJob);
         } else {
-          // Fallback to localStorage if API is empty (though it shouldn't be if synced)
-          const savedJobStatus = localStorage.getItem('worker_jobStatus');
-          const savedBookingId = localStorage.getItem('worker_activeBookingId');
-          const savedJobDetails = localStorage.getItem('worker_activeJobDetails');
-          
-          if (savedJobStatus && savedJobStatus !== 'IDLE' && savedBookingId && savedJobDetails) {
-            setJobStatus(savedJobStatus as any);
-            setActiveBookingId(savedBookingId);
-            setActiveJobDetails(JSON.parse(savedJobDetails));
-          } else {
-            setJobStatus('IDLE');
-          }
+          setJobStatus('IDLE');
+          setActiveBookingId(null);
+          setActiveJobDetails(null);
         }
       } catch (err) {
         console.error("Failed to fetch active jobs:", err);
@@ -169,6 +161,8 @@ export default function WorkerApp() {
   }, [user?.id, token]);
 
   const acceptGig = async (job: any) => {
+    if (acceptingJobId) return; // Prevent double clicks
+    setAcceptingJobId(job.booking_id);
     try {
       await api.post(`/bookings/${job.booking_id}/accept`, {}, { headers: { Authorization: `Bearer ${token}` }});
       setActiveBookingId(job.booking_id);
@@ -177,8 +171,13 @@ export default function WorkerApp() {
       setActiveTab('ACTIVE_JOB');
     } catch (err: any) {
       console.error(err);
-      alert(err.response?.data?.message || "Job is no longer available.");
-      setAvailableJobs(prev => prev.filter(j => j.booking_id !== job.booking_id));
+      alert(err.response?.data?.error?.message || "Job is no longer available.");
+      // Only remove if it was actually no longer available, not if the worker was just offline
+      if (err.response?.data?.error?.message !== "You must be online to accept jobs") {
+        setAvailableJobs(prev => prev.filter(j => j.booking_id !== job.booking_id));
+      }
+    } finally {
+      setAcceptingJobId(null);
     }
   };
 
@@ -235,13 +234,24 @@ export default function WorkerApp() {
     }
   };
 
+  const toggleAvailability = async () => {
+    if (!profile) return;
+    const newStatus = !profile.isAvailable;
+    try {
+      await api.patch('/workers/profile/availability', { is_available: newStatus }, { headers: { Authorization: `Bearer ${token}` }});
+      setProfile({ ...profile, isAvailable: newStatus });
+    } catch (err) {
+      console.error("Failed to toggle availability", err);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-card text-foreground flex font-sans">
+    <div className="min-h-screen bg-card flex font-sans text-foreground selection:bg-black selection:text-white">
       
       {/* 1. Left Sidebar Navigation */}
       <aside className="w-64 bg-background border-r border-border hidden md:flex flex-col shrink-0">
         <div className="h-16 flex items-center px-6 border-b border-border">
-          <Link href="/" className="flex items-center gap-2 cursor-pointer">
+          <Link href="/worker" className="flex items-center gap-2 cursor-pointer">
           <div className="w-8 h-8 flex items-center justify-center bg-background rounded text-foreground font-black tracking-tighter text-lg shadow-[2px_2px_0px_rgba(0,0,0,1)] border border-border">
             FN
           </div>
@@ -349,6 +359,7 @@ export default function WorkerApp() {
                           const wLat = profile?.latitude || 12.9716;
                           const wLng = profile?.longitude || 77.5946;
                           const filteredJobs = availableJobs.filter(job => {
+                            if (job.address_text === 'IVR_REQUEST') return true;
                             if (!job.latitude || !job.longitude) return true;
                             const dist = haversineKm(wLat, wLng, job.latitude, job.longitude);
                             return dist <= radius;
@@ -369,19 +380,40 @@ export default function WorkerApp() {
                                   <h4 className="font-bold text-foreground text-lg">{job.service_type || 'Service'} Request</h4>
                                   <p className="text-sm text-muted-foreground mt-1">Est. Payout: <span className="text-black font-extrabold">₹{job.estimated_wage}</span></p>
                                 </div>
-                                <span className="bg-primary text-primary-foreground text-white px-2 py-1 text-[10px] font-bold uppercase tracking-widest">
-                                  New
-                                </span>
+                                {job.address_text === 'IVR_REQUEST' ? (
+                                  <span className="bg-primary text-primary-foreground px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded shadow-sm">
+                                    IVR Booking 📞
+                                  </span>
+                                ) : (
+                                  <span className="bg-primary text-primary-foreground text-white px-2 py-1 text-[10px] font-bold uppercase tracking-widest">
+                                    New
+                                  </span>
+                                )}
                               </div>
-                              <div className="bg-background p-3 mb-4 border border-zinc-100 rounded-lg text-xs text-zinc-700">
-                                {job.custom_prompt_text || "No description provided."}
-                              </div>
+                              {job.address_text !== 'IVR_REQUEST' && (
+                                <div className="bg-background p-3 mb-4 border border-zinc-100 rounded-lg text-xs text-zinc-700">
+                                  {job.custom_prompt_text || "No description provided."}
+                                </div>
+                              )}
+                              {job.address_text === 'IVR_REQUEST' && (
+                                <div className="bg-card p-3 mb-4 border border-border rounded-lg flex flex-col gap-2 shadow-sm">
+                                  <div className="text-sm text-foreground">
+                                    <span className="font-bold uppercase tracking-wider text-xs text-muted-foreground">Pincode: </span>
+                                    <span className="font-black">{job.pincode}</span>
+                                  </div>
+                                  {job.customer_phone && (
+                                    <a href={`tel:${job.customer_phone}`} className="bg-primary hover:bg-primary/90 text-primary-foreground text-center font-bold text-xs uppercase tracking-wider py-2 rounded-lg transition-colors">
+                                      Call Customer: {job.customer_phone}
+                                    </a>
+                                  )}
+                                </div>
+                              )}
                               <button 
                                 onClick={() => acceptGig(job)}
-                                disabled={jobStatus !== 'IDLE'}
-                                className={`w-full font-bold py-3 rounded-xl transition-colors text-sm uppercase tracking-wider shadow-sm ${jobStatus !== 'IDLE' ? 'bg-zinc-200 text-muted-foreground cursor-not-allowed' : 'bg-zinc-900 hover:bg-primary text-primary-foreground text-white'}`}
+                                disabled={acceptingJobId === job.booking_id || jobStatus !== 'IDLE'}
+                                className={`w-full font-bold py-3 rounded-xl transition-colors text-sm uppercase tracking-wider shadow-sm ${acceptingJobId === job.booking_id || jobStatus !== 'IDLE' ? 'bg-zinc-200 text-muted-foreground cursor-not-allowed' : 'bg-zinc-900 hover:bg-primary text-primary-foreground text-white'}`}
                               >
-                                {jobStatus !== 'IDLE' ? 'Finish Active Job First' : 'Accept Job'}
+                                {acceptingJobId === job.booking_id ? 'Accepting...' : jobStatus !== 'IDLE' ? 'Finish Active Job First' : 'Accept Job'}
                               </button>
                             </div>
                           ));
@@ -441,16 +473,26 @@ export default function WorkerApp() {
                         
                         <div className="bg-background p-4 border border-border rounded-xl mb-6 shadow-sm">
                           <div className="flex justify-between text-sm mb-2">
-                            <span className="text-muted-foreground">Distance</span>
+                            <span className="text-muted-foreground">Location</span>
                             <span className="text-foreground font-bold">
-                              {activeJobDetails?.latitude ? 
-                                `${haversineKm(profile?.latitude || 12.9716, profile?.longitude || 77.5946, activeJobDetails.latitude, activeJobDetails.longitude).toFixed(1)} km` 
+                              {activeJobDetails?.address_text === 'IVR_REQUEST' ? 
+                                `Pincode: ${activeJobDetails.pincode}` 
+                                : activeJobDetails?.latitude ? 
+                                `${haversineKm(profile?.latitude || 12.9716, profile?.longitude || 77.5946, activeJobDetails.latitude, activeJobDetails.longitude).toFixed(1)} km away` 
                                 : 'Unknown'
                               }
                             </span>
                           </div>
                           <div className="flex justify-between text-sm"><span className="text-muted-foreground">Est. Payout</span><span className="text-black font-extrabold">₹{activeJobDetails?.estimated_wage || '450'}</span></div>
                         </div>
+
+                        {activeJobDetails?.address_text === 'IVR_REQUEST' && activeJobDetails.customer_phone && (
+                          <div className="mb-6">
+                            <a href={`tel:${activeJobDetails.customer_phone}`} className="w-full flex items-center justify-center bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 text-xs uppercase tracking-wider rounded-xl transition-colors shadow-sm">
+                              Call Customer: {activeJobDetails.customer_phone}
+                            </a>
+                          </div>
+                        )}
 
                         {jobStatus === 'ACCEPTED' && (
                           <button onClick={() => setJobStatus('IN_PROGRESS')} className="w-full bg-primary text-primary-foreground py-4 text-xs font-bold text-white uppercase tracking-wider transition-colors rounded-xl shadow-md hover:bg-zinc-800">
@@ -570,8 +612,8 @@ export default function WorkerApp() {
                     )}
 
                     {jobStatus === 'COMPLETED' && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-card/90 backdrop-blur-sm z-10 p-4">
-                        <div className="bg-card border border-border p-10 text-center max-w-md w-full shadow-[8px_8px_0px_rgba(0,0,0,1)] animate-in zoom-in-95">
+                      <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50 p-4">
+                        <div className="bg-card border border-border p-10 text-center max-w-md w-full shadow-[8px_8px_0px_rgba(0,0,0,0.15)] animate-in zoom-in-95">
                           <h2 className="text-3xl font-extrabold text-foreground mb-2">Job Completed!</h2>
                           <p className="text-muted-foreground text-sm mb-8 font-medium">Funds have been added to your escrow.</p>
                           
@@ -659,20 +701,35 @@ export default function WorkerApp() {
 
           {activeTab === 'PROFILE' && (
             <div className="max-w-4xl">
-              <div className="flex items-center gap-8 mb-10 pb-10 border-b border-border">
-                <div className="w-32 h-32 bg-muted border border-border flex items-center justify-center text-5xl overflow-hidden shadow-sm rounded-2xl">
-                  {profile?.photoUrl ? (
-                    <img src={`http://localhost:8080${profile.photoUrl}`} alt="Worker Photo" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="font-extrabold text-foreground">{user?.name?.[0] || 'W'}</span>
-                  )}
+              <div className="flex items-center justify-between mb-10 pb-10 border-b border-border">
+                <div className="flex items-center gap-8">
+                  <div className="w-32 h-32 bg-muted border border-border flex items-center justify-center text-5xl overflow-hidden shadow-sm rounded-2xl">
+                    {profile?.photoUrl ? (
+                      <img src={`http://localhost:8080${profile.photoUrl}`} alt="Worker Photo" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="font-extrabold text-foreground">{user?.name?.[0] || 'W'}</span>
+                    )}
+                  </div>
+                  <div>
+                    <h2 className="text-4xl font-extrabold text-foreground mb-2">{profile?.name || user?.name || "Professional"}</h2>
+                    <p className="text-foreground text-lg font-bold flex items-center gap-2">
+                      ★ {profile?.rating?.toFixed(1) || "4.9"} / 5.0 Rating
+                    </p>
+                    <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mt-2">{profile?.totalJobs || 0} Total Jobs Completed</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-4xl font-extrabold text-foreground mb-2">{profile?.name || user?.name || "Professional"}</h2>
-                  <p className="text-foreground text-lg font-bold flex items-center gap-2">
-                    ★ {profile?.rating?.toFixed(1) || "4.9"} / 5.0 Rating
-                  </p>
-                  <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mt-2">{profile?.totalJobs || 0} Total Jobs Completed</p>
+                
+                <div className="flex flex-col items-end gap-3">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Duty Status</p>
+                  <button 
+                    onClick={toggleAvailability}
+                    className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none ${profile?.isAvailable ? 'bg-green-500' : 'bg-zinc-300'}`}
+                  >
+                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${profile?.isAvailable ? 'translate-x-9' : 'translate-x-1'}`} />
+                  </button>
+                  <span className={`text-sm font-bold uppercase tracking-wider ${profile?.isAvailable ? 'text-green-600' : 'text-zinc-500'}`}>
+                    {profile?.isAvailable ? 'Online / Active' : 'Offline / Inactive'}
+                  </span>
                 </div>
               </div>
 
