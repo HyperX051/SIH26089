@@ -70,6 +70,9 @@ function JobDetailPanel({ booking, token, onClose, onRefresh }: {
   const [rating, setRating] = useState<number>(booking.customer_rating || 0);
   const [submittingRating, setSubmittingRating] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   const statusCfg  = STATUS_CONFIG[booking.status] || { label: booking.status, cls: 'bg-muted text-muted-foreground border-border' };
   const isActive   = ['ACCEPTED','ARRIVED','IN_PROGRESS'].includes(booking.status);
@@ -101,6 +104,20 @@ function JobDetailPanel({ booking, token, onClose, onRefresh }: {
       await api.post('/safety/sos', { bookingId: booking.id, latitude: 0, longitude: 0, telemetry: {} });
       alert("SOS Alert triggered! Authorities have been notified.");
     } catch { alert("Failed to trigger SOS."); }
+  };
+
+  const handleCancel = async () => {
+    if (!cancelReason.trim()) return alert("Please provide a reason");
+    setCancelling(true);
+    try {
+      await api.post(`/bookings/${booking.id}/cancel`, { 
+        reason: cancelReason, 
+        cancelledBy: "CUSTOMER" 
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      onRefresh();
+      setShowCancelConfirm(false);
+    } catch { alert("Failed to cancel booking."); }
+    finally { setCancelling(false); }
   };
 
   const dateStr = booking.date
@@ -248,6 +265,39 @@ function JobDetailPanel({ booking, token, onClose, onRefresh }: {
               </button>
             </div>
           )}
+
+          {/* Cancel Booking */}
+          {isActive && (
+            <div className="px-6 pb-6">
+              <button onClick={() => setShowCancelConfirm(true)}
+                className="w-full bg-muted hover:bg-border text-muted-foreground font-bold text-sm py-3 rounded-xl transition-colors">
+                Cancel Booking
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Cancel Confirm Modal Overlay */}
+        {showCancelConfirm && (
+          <div className="absolute inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col p-6 items-center justify-center">
+            <h3 className="text-xl font-bold mb-2">Cancel Booking?</h3>
+            <p className="text-sm text-muted-foreground text-center mb-6">
+              If a worker is already assigned, a small cancellation fee may apply to compensate them for their time.
+            </p>
+            <textarea
+              value={cancelReason}
+              onChange={e => setCancelReason(e.target.value)}
+              placeholder="Why are you cancelling?"
+              className="w-full bg-card border border-border rounded-xl p-3 text-sm mb-4 min-h-[100px]"
+            />
+            <div className="flex gap-3 w-full">
+              <button onClick={() => setShowCancelConfirm(false)} className="flex-1 py-3 bg-muted rounded-xl font-bold text-sm">Keep it</button>
+              <button onClick={handleCancel} disabled={cancelling} className="flex-1 py-3 bg-destructive text-destructive-foreground rounded-xl font-bold text-sm">
+                {cancelling ? 'Cancelling...' : 'Yes, Cancel'}
+              </button>
+            </div>
+          </div>
+        )}
 
           {/* Rating */}
           {isCompleted && (
