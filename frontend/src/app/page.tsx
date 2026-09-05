@@ -384,12 +384,14 @@ export default function Home() {
                     onLocationSelect={async (lat, lng) => {
                       setLocationLoading(true);
                       let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                      let pincode = '000000';
                       try {
                         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
                         const data = await res.json();
                         address = data.display_name || address;
+                        pincode = data.address?.postcode?.replace(/\s/g, '').slice(0, 6) || '000000';
                       } catch {}
-                      setLocation({ latitude: lat, longitude: lng, address });
+                      setLocation({ latitude: lat, longitude: lng, address, pincode });
                       setLocationLoading(false);
                     }}
                   />
