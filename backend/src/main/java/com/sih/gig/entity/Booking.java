@@ -80,6 +80,9 @@ public class Booking {
     @Column(name = "accepted_at")
     private OffsetDateTime acceptedAt;
 
+    @Column(name = "customer_rating")
+    private Integer customerRating;
+
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = OffsetDateTime.now();

@@ -101,9 +101,42 @@ public class AdminService {
                         "id", w.getId().toString(),
                         "name", w.getUser().getName() != null ? w.getUser().getName() : "",
                         "phone", w.getUser().getPhone(),
-                        "skill_type", w.getTier() // Or perhaps we could look at bookings or just display Tier
+                        "skill_type", w.getTier(),
+                        "certification_url", w.getCertificationUrl() != null ? w.getCertificationUrl() : "",
+                        "approval_status", w.getApprovalStatus()
                 ))
                 .toList();
+    }
+
+    /**
+     * POST /api/v1/admin/workers/{id}/approve
+     */
+    @Transactional
+    public Map<String, Object> approveKyc(java.util.UUID workerId, com.sih.gig.dto.request.ApproveKycRequest req) {
+        Worker worker = workerRepository.findById(workerId)
+                .orElseThrow(() -> ApiException.notFound("Worker not found"));
+        
+        worker.setApprovalStatus("APPROVED");
+        worker.setItiCertified(true);
+        if (req != null && req.getTier() != null && !req.getTier().isBlank()) {
+            worker.setTier(req.getTier());
+        }
+        workerRepository.save(worker);
+        return Map.of("message", "Worker approved successfully", "id", worker.getId().toString());
+    }
+
+    /**
+     * POST /api/v1/admin/workers/{id}/reject
+     */
+    @Transactional
+    public Map<String, Object> rejectKyc(java.util.UUID workerId) {
+        Worker worker = workerRepository.findById(workerId)
+                .orElseThrow(() -> ApiException.notFound("Worker not found"));
+        
+        worker.setApprovalStatus("REJECTED");
+        worker.setItiCertified(false);
+        workerRepository.save(worker);
+        return Map.of("message", "Worker rejected successfully", "id", worker.getId().toString());
     }
 
     /**
@@ -144,17 +177,21 @@ public class AdminService {
     @Transactional(readOnly = true)
     public java.util.List<Map<String, Object>> getAllBookings() {
         return bookingRepository.findAll().stream()
-                .map(b -> Map.<String, Object>of(
-                        "id", b.getId().toString(),
-                        "customer_name", b.getCustomer().getName() != null ? b.getCustomer().getName() : "",
-                        "customer_phone", b.getCustomer().getPhone(),
-                        "service_type", b.getServiceType(),
-                        "status", b.getStatus(),
-                        "created_at", b.getCreatedAt() != null ? b.getCreatedAt().toString() : "",
-                        "base_wage", b.getBaseWage(),
-                        "material_cost", b.getMaterialCost(),
-                        "worker_name", b.getWorker() != null && b.getWorker().getUser().getName() != null ? b.getWorker().getUser().getName() : "Unassigned"
-                ))
+                .map(b -> {
+                    java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
+                    map.put("id", b.getId().toString());
+                    map.put("customer_name", b.getCustomer().getName() != null ? b.getCustomer().getName() : "");
+                    map.put("customer_phone", b.getCustomer().getPhone());
+                    map.put("service_type", b.getServiceType());
+                    map.put("status", b.getStatus());
+                    map.put("created_at", b.getCreatedAt() != null ? b.getCreatedAt().toString() : "");
+                    map.put("base_wage", b.getBaseWage());
+                    map.put("material_cost", b.getMaterialCost());
+                    map.put("worker_name", b.getWorker() != null && b.getWorker().getUser().getName() != null ? b.getWorker().getUser().getName() : "Unassigned");
+                    map.put("latitude", b.getLatitude() != null ? b.getLatitude().doubleValue() : null);
+                    map.put("longitude", b.getLongitude() != null ? b.getLongitude().doubleValue() : null);
+                    return map;
+                })
                 .toList();
     }
 

@@ -95,6 +95,7 @@ public class BookingService {
         broadcastPayload.put("customer_phone", saved.getCustomer() != null ? saved.getCustomer().getPhone() : "");
         broadcastPayload.put("address_text", saved.getAddressText());
         broadcaster.broadcastNewJob(broadcastPayload);
+        broadcaster.broadcastStatsUpdate();
 
         return new LinkedHashMap<>(Map.of(
                 "booking_id", saved.getId().toString(),
@@ -146,6 +147,13 @@ public class BookingService {
                 "material_cost",  booking.getMaterialCost(),
                 "total_amount",   total
         ));
+        
+        // Add UPI Payment URI if pending payment
+        if ("PAYMENT_PENDING".equals(booking.getStatus()) && booking.getWorker() != null && booking.getWorker().getUpiId() != null) {
+            String upiId = booking.getWorker().getUpiId();
+            String uri = String.format("upi://pay?pa=%s&am=%s&cu=INR", upiId, total);
+            result.put("payment_uri", uri);
+        }
 
         result.put("otp_code", booking.getOtpCode());
         return result;
@@ -222,30 +230,133 @@ public class BookingService {
             throw ApiException.unauthorized("Invalid OTP — ticket closure denied");
         }
 
-        booking.setStatus("COMPLETED");
+        booking.setStatus("PAYMENT_PENDING");
         bookingRepository.save(booking);
-        broadcaster.sendStatusChanged(bookingId, "COMPLETED");
+        broadcaster.sendStatusChanged(bookingId, "PAYMENT_PENDING");
 
         BigDecimal total = booking.getBaseWage().add(booking.getMaterialCost());
 
+        String paymentUri = null;
+        if (booking.getWorker() != null && booking.getWorker().getUpiId() != null) {
+            String upiId = booking.getWorker().getUpiId();
+            paymentUri = String.format("upi://pay?pa=%s&am=%s&cu=INR", upiId, total);
+        }
+
         return Map.of(
-                "status",          "COMPLETED",
+                "status",          "PAYMENT_PENDING",
                 "payment_pending", true,
-                "total_amount",    total
+                "total_amount",    total,
+                "payment_uri",     paymentUri != null ? paymentUri : ""
         );
     }
 
+    @Transactional
+    public Map<String, Object> customerPaid(UUID bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> ApiException.notFound("Booking not found"));
+
+        if (!"PAYMENT_PENDING".equals(booking.getStatus())) {
+            throw ApiException.badRequest("Booking is not pending payment");
+        }
+
+        booking.setStatus("PAYMENT_CLAIMED");
+        bookingRepository.save(booking);
+        broadcaster.sendStatusChanged(bookingId, "PAYMENT_CLAIMED");
+
+        return Map.of("status", "PAYMENT_CLAIMED");
+    }
+
+    @Transactional
+    public Map<String, Object> workerConfirmPayment(UUID bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> ApiException.notFound("Booking not found"));
+
+        if (!"PAYMENT_CLAIMED".equals(booking.getStatus())) {
+            throw ApiException.badRequest("Payment has not been claimed by customer yet");
+        }
+
+        booking.setStatus("COMPLETED");
+        if (booking.getWorker() != null) {
+            Worker worker = booking.getWorker();
+            worker.setTotalJobs(worker.getTotalJobs() + 1);
+        }
+        bookingRepository.save(booking);
+        broadcaster.sendStatusChanged(bookingId, "COMPLETED");
+        broadcaster.broadcastStatsUpdate();
+
+        return Map.of("status", "COMPLETED");
+    }
+
+    @Transactional(readOnly = true)
     public java.util.List<Map<String, Object>> getCustomerBookings(User customer) {
         return bookingRepository.findByCustomerId(customer.getId())
                 .stream()
-                .map(b -> Map.<String, Object>of(
-                        "id", b.getId().toString(),
-                        "serviceType", b.getServiceType(),
-                        "status", b.getStatus(),
-                        "amount", b.getBaseWage().add(b.getMaterialCost()),
-                        "date", b.getCreatedAt() != null ? b.getCreatedAt().toString() : ""
-                ))
+                .map(b -> {
+                    BigDecimal total = b.getBaseWage().add(b.getMaterialCost());
+                    String paymentUri = null;
+                    if ("PAYMENT_PENDING".equals(b.getStatus()) && b.getWorker() != null && b.getWorker().getUpiId() != null) {
+                        String upiId = b.getWorker().getUpiId();
+                        paymentUri = String.format("upi://pay?pa=%s&am=%s&cu=INR", upiId, total);
+                    }
+                    java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
+                    map.put("id", b.getId().toString());
+                    map.put("serviceType", b.getServiceType());
+                    map.put("status", b.getStatus());
+                    map.put("amount", total);
+                    map.put("payment_uri", paymentUri != null ? paymentUri : "");
+                    map.put("date", b.getCreatedAt() != null ? b.getCreatedAt().toString() : "");
+                    map.put("address", b.getAddressText() != null ? b.getAddressText() : "");
+                    map.put("pincode", b.getPincode() != null ? b.getPincode() : "");
+                    map.put("otp_code", b.getOtpCode() != null ? b.getOtpCode() : "");
+                    map.put("customer_rating", b.getCustomerRating());
+                    if (b.getWorker() != null) {
+                        Worker w = b.getWorker();
+                        map.put("worker_name", w.getUser().getName() != null ? w.getUser().getName() : "Worker");
+                        map.put("worker_phone", w.getUser().getPhone());
+                        map.put("worker_rating", w.getRating());
+                        map.put("worker_tier", w.getTier());
+                        map.put("worker_iti_certified", w.getItiCertified());
+                    } else {
+                        map.put("worker_name", null);
+                        map.put("worker_phone", null);
+                        map.put("worker_rating", null);
+                        map.put("worker_tier", null);
+                        map.put("worker_iti_certified", null);
+                    }
+                    return map;
+                })
                 .toList();
+    }
+
+    /**
+     * POST /api/v1/bookings/:id/rate
+     */
+    @Transactional
+    public Map<String, Object> rateBooking(UUID bookingId, int stars, User customer) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> ApiException.notFound("Booking not found"));
+        if (!"COMPLETED".equals(booking.getStatus())) {
+            throw ApiException.badRequest("Can only rate completed bookings");
+        }
+        if (!booking.getCustomer().getId().equals(customer.getId())) {
+            throw ApiException.unauthorized("You cannot rate this booking");
+        }
+        if (stars < 1 || stars > 5) {
+            throw ApiException.badRequest("Rating must be between 1 and 5");
+        }
+        booking.setCustomerRating(stars);
+        bookingRepository.save(booking);
+
+        // Update worker's aggregate rating
+        if (booking.getWorker() != null) {
+            Worker worker = booking.getWorker();
+            java.util.List<Booking> ratedBookings = bookingRepository.findByWorkerIdAndStatus(worker.getId(), "COMPLETED")
+                    .stream().filter(rb -> rb.getCustomerRating() != null).toList();
+            double avg = ratedBookings.stream().mapToInt(Booking::getCustomerRating).average().orElse(stars);
+            worker.setRating(java.math.BigDecimal.valueOf(avg).setScale(2, java.math.RoundingMode.HALF_UP));
+            workerRepository.save(worker);
+        }
+        return Map.of("message", "Rating submitted", "rating", stars);
     }
 
     @Transactional(readOnly = true)
@@ -257,6 +368,8 @@ public class BookingService {
         active.addAll(bookingRepository.findByWorkerIdAndStatus(worker.getId(), "ACCEPTED"));
         active.addAll(bookingRepository.findByWorkerIdAndStatus(worker.getId(), "ARRIVED"));
         active.addAll(bookingRepository.findByWorkerIdAndStatus(worker.getId(), "IN_PROGRESS"));
+        active.addAll(bookingRepository.findByWorkerIdAndStatus(worker.getId(), "PAYMENT_PENDING"));
+        active.addAll(bookingRepository.findByWorkerIdAndStatus(worker.getId(), "PAYMENT_CLAIMED"));
         
         return active.stream().map(b -> {
             java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
@@ -271,6 +384,12 @@ public class BookingService {
             map.put("pincode", b.getPincode());
             map.put("customer_phone", b.getCustomer() != null ? b.getCustomer().getPhone() : "");
             map.put("address_text", b.getAddressText());
+            if (("PAYMENT_PENDING".equals(b.getStatus()) || "PAYMENT_CLAIMED".equals(b.getStatus())) && worker.getUpiId() != null) {
+                BigDecimal total = b.getBaseWage().add(b.getMaterialCost());
+                String paymentUri = String.format("upi://pay?pa=%s&am=%s&cu=INR",
+                    worker.getUpiId(), total);
+                map.put("payment_uri", paymentUri);
+            }
             return map;
         }).toList();
     }

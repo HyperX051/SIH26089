@@ -21,6 +21,8 @@ interface MapPickerProps {
   radius?: number;
   destinationPosition?: { lat: number; lng: number } | null;
   markers?: { id: string; lat: number; lng: number; type: 'SOS' | 'BOOKING'; popup?: string }[];
+  readOnly?: boolean;
+  jobs?: any[];
 }
 
 function LocationMarker({ position, onLocationSelect }: { position: any, onLocationSelect: any }) {
@@ -35,7 +37,7 @@ function LocationMarker({ position, onLocationSelect }: { position: any, onLocat
   );
 }
 
-export default function MapPicker({ initialPosition, onLocationSelect, radius, destinationPosition, markers = [] }: MapPickerProps) {
+export default function MapPicker({ initialPosition, onLocationSelect, radius, destinationPosition, markers = [], readOnly = false, jobs = [] }: MapPickerProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [route, setRoute] = useState<[number, number][]>([]);
   const defaultPos = { lat: 12.9716, lng: 77.5946 }; // Bangalore default
@@ -83,10 +85,12 @@ export default function MapPicker({ initialPosition, onLocationSelect, radius, d
             radius={radius * 1000} 
           />
         )}
-        <LocationMarker 
-          position={initialPosition} 
-          onLocationSelect={onLocationSelect} 
-        />
+        {!readOnly && (
+          <LocationMarker 
+            position={initialPosition} 
+            onLocationSelect={onLocationSelect} 
+          />
+        )}
         {destinationPosition && (
           <>
             <Marker position={destinationPosition} icon={L.icon({

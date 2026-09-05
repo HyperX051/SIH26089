@@ -15,6 +15,8 @@ export const metadata: Metadata = {
 
 import { ThemeProvider } from "@/components/ThemeProvider"
 
+import Script from 'next/script'
+
 export default function RootLayout({
   children,
 }: {
@@ -31,6 +33,23 @@ export default function RootLayout({
         >
           {children}
         </ThemeProvider>
+        
+        {/* Google Translate Integration */}
+        <div id="google_translate_element" style={{ display: 'none' }}></div>
+        <Script id="google-translate-init" strategy="afterInteractive">
+          {`
+            function googleTranslateElementInit() {
+              new window.google.translate.TranslateElement({
+                pageLanguage: 'en',
+                autoDisplay: false
+              }, 'google_translate_element');
+            }
+          `}
+        </Script>
+        <Script 
+          src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" 
+          strategy="afterInteractive" 
+        />
       </body>
     </html>
   )

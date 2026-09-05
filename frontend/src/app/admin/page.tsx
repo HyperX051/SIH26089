@@ -5,7 +5,9 @@ import { api } from '@/lib/api';
 import { useStomp } from '@/hooks/useStomp';
 import { useAuthStore } from '@/store/useAuthStore';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
@@ -16,15 +18,17 @@ export default function AdminApp() {
   const [kycPending, setKycPending] = useState<any[]>([]);
   const [sosAlerts, setSosAlerts] = useState<any[]>([]);
   const [liveBookings, setLiveBookings] = useState<any[]>([]);
+  const [allBookings, setAllBookings] = useState<any[]>([]);
   const [loadingLedger, setLoadingLedger] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
   
-  const [modalType, setModalType] = useState<'workers' | 'bookings' | 'sos' | 'ledger' | null>(null);
+  const [modalType, setModalType] = useState<'workers' | 'bookings' | 'sos' | 'ledger' | 'kyc' | null>(null);
   const [modalData, setModalData] = useState<any[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
 
   const { client, connected } = useStomp();
-  const token = useAuthStore(state => state.token);
+  const { token, _hasHydrated } = useAuthStore();
+  const router = useRouter();
 
   useEffect(() => {
     const fetchLedger = async () => {
@@ -73,12 +77,8 @@ export default function AdminApp() {
     const fetchKyc = async () => {
       try {
         const res = await api.get('/admin/workers/kyc-pending');
-        const list = res.data?.content ?? res.data ?? [];
-        if (list.length > 0) {
-          setKycPending(list);
-        } else {
-          throw new Error("Empty KYC list");
-        }
+        const list = res.data?.data || [];
+        setKycPending(list);
       } catch (err) {
         console.error("KYC API failed:", err);
       }
@@ -90,6 +90,15 @@ export default function AdminApp() {
         setLiveBookings(res.data.data || []);
       } catch (err) {
         console.error("Live bookings API failed:", err);
+      }
+    };
+
+    const fetchAllBookings = async () => {
+      try {
+        const res = await api.get('/admin/bookings');
+        setAllBookings(res.data.data || []);
+      } catch (err) {
+        console.error("All bookings API failed:", err);
       }
     };
 
@@ -105,13 +114,20 @@ export default function AdminApp() {
       }
     };
 
+    if (!_hasHydrated) return;
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+
     fetchLedger();
     fetchStats();
     fetchDistribution();
     fetchKyc();
     fetchLiveBookings();
+    fetchAllBookings();
     fetchSosAlerts();
-  }, []);
+  }, [_hasHydrated, token]);
 
   // Listen to SOS Alerts and Global Stats updates
   useEffect(() => {
@@ -145,7 +161,7 @@ export default function AdminApp() {
     }
   }, [client, connected]);
 
-  const openModal = async (type: 'workers' | 'bookings' | 'sos' | 'ledger') => {
+  const openModal = async (type: 'workers' | 'bookings' | 'sos' | 'ledger' | 'kyc', workerId?: string) => {
     setModalType(type);
     setModalLoading(true);
     setModalData([]);
@@ -155,11 +171,22 @@ export default function AdminApp() {
       if (type === 'bookings') endpoint = '/admin/bookings';
       if (type === 'sos') endpoint = '/admin/sos';
       if (type === 'ledger') endpoint = '/admin/cooperative/ledger-breakdown';
+      if (type === 'kyc' && workerId) endpoint = `/admin/workers/${workerId}/kyc-details`;
+      else if (type === 'kyc') endpoint = '/admin/workers/kyc-pending';
       
       const res = await api.get(endpoint);
-      setModalData(res.data.data || []);
+      // For kyc single worker, wrap in array if needed
+      const data = res.data.data;
+      setModalData(Array.isArray(data) ? data : data ? [data] : []);
     } catch (err) {
       console.error("Failed to load modal data", err);
+      // Fallback: use what we already have in kycPending for the given worker
+      if (type === 'kyc' && workerId) {
+        const worker = kycPending.find((w: any) => w.id === workerId);
+        if (worker) setModalData([worker]);
+      } else if (type === 'kyc') {
+        setModalData(kycPending);
+      }
     } finally {
       setModalLoading(false);
     }
@@ -206,7 +233,8 @@ export default function AdminApp() {
             <h1 className="text-xl font-extrabold text-foreground tracking-tight uppercase">Admin</h1>
           </div>
         </Link>
-        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6">
+          <LanguageSwitcher compact />
           <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 border border-green-200">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
             <span className="text-xs font-bold text-green-700 uppercase tracking-wide">Live Stream</span>
@@ -304,12 +332,14 @@ export default function AdminApp() {
                 initialPosition={{ lat: 12.9716, lng: 77.5946 }} 
                 onLocationSelect={() => {}} 
                 markers={[
-                  ...liveBookings.map(b => ({
-                    id: b.booking_id,
-                    lat: b.latitude,
-                    lng: b.longitude,
-                    type: 'BOOKING' as const
-                  })),
+                  ...allBookings
+                    .filter(b => b.latitude && b.longitude)
+                    .map(b => ({
+                      id: b.id || b.booking_id,
+                      lat: b.latitude,
+                      lng: b.longitude,
+                      type: 'BOOKING' as const
+                    })),
                   ...sosAlerts.map((s, idx) => ({
                     id: `sos-${idx}`,
                     lat: s.latitude,
@@ -390,7 +420,9 @@ export default function AdminApp() {
                         <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-1">{worker.skill_type || 'Pending assignment'}</p>
                       </div>
                     </div>
-                    <button className="w-full bg-muted hover:bg-primary text-primary-foreground hover:text-white border border-border rounded-xl text-zinc-700 py-3 text-xs font-bold uppercase tracking-wider transition-colors shadow-sm">
+                    <button
+                      onClick={() => openModal('kyc', worker.id)}
+                      className="w-full bg-muted hover:bg-primary text-foreground hover:text-white border border-border rounded-xl py-3 text-xs font-bold uppercase tracking-wider transition-colors shadow-sm">
                       Review Docs
                     </button>
                   </div>
@@ -410,9 +442,10 @@ export default function AdminApp() {
             <div className="flex justify-between items-center p-6 border-b border-border bg-muted/30">
               <h2 className="text-2xl font-extrabold uppercase tracking-tight">
                 {modalType === 'workers' && 'Active Workers'}
-                {modalType === 'bookings' && 'Total Bookings'}
+                {modalType === 'bookings' && 'All Bookings'}
                 {modalType === 'sos' && 'SOS Alerts'}
                 {modalType === 'ledger' && 'Federation Ledger Breakdown'}
+                {modalType === 'kyc' && 'Review Worker Documents'}
               </h2>
               <button 
                 onClick={() => setModalType(null)}
@@ -431,7 +464,7 @@ export default function AdminApp() {
                 <div className="flex justify-center items-center h-40">
                   <span className="text-muted-foreground font-bold uppercase tracking-wider">No data found</span>
                 </div>
-              ) : (
+              ) : modalType !== 'kyc' ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead className="bg-muted/50 text-muted-foreground font-bold uppercase tracking-wider text-xs">
@@ -549,6 +582,73 @@ export default function AdminApp() {
                     </tbody>
                   </table>
                 </div>
+              ) : (
+                modalType === 'kyc' && modalData[0] && (
+                  <div className="flex flex-col md:flex-row gap-6">
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-muted-foreground mb-4 uppercase tracking-wider">Uploaded Document</p>
+                      <div className="border border-border p-2 bg-muted rounded-xl">
+                        {modalData[0].certification_url ? (
+                          <img src={`http://localhost:8080${modalData[0].certification_url}`} alt="Worker Document" className="w-full object-contain max-h-[50vh] rounded-lg" />
+                        ) : (
+                          <div className="h-[40vh] flex items-center justify-center text-muted-foreground font-bold">No document uploaded</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="w-full md:w-80 flex flex-col gap-6">
+                      <div>
+                        <h3 className="text-2xl font-extrabold text-foreground">{modalData[0].name || 'Worker'}</h3>
+                        <p className="text-sm font-mono text-muted-foreground mt-1">{modalData[0].phone}</p>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-bold text-muted-foreground mb-2 uppercase tracking-wider">Assign Trade Tier</label>
+                          <select 
+                            id="tierSelect"
+                            className="w-full bg-background border border-border px-4 py-3 font-bold rounded-xl outline-none"
+                            defaultValue="SKILLED"
+                          >
+                            <option value="BASIC">BASIC</option>
+                            <option value="SKILLED">SKILLED</option>
+                            <option value="EXPERT">EXPERT</option>
+                          </select>
+                        </div>
+                        
+                        <div className="flex flex-col gap-3 pt-4 border-t border-border">
+                          <button 
+                            onClick={async () => {
+                              try {
+                                const tier = (document.getElementById('tierSelect') as HTMLSelectElement).value;
+                                await api.post(`/admin/workers/${modalData[0].id}/approve`, { tier });
+                                alert('Worker Approved!');
+                                setModalType(null);
+                                window.location.reload();
+                              } catch (e) { alert('Failed to approve'); }
+                            }}
+                            className="w-full bg-zinc-900 text-white font-bold py-4 rounded-xl uppercase tracking-wider text-sm hover:bg-black transition-colors shadow-sm"
+                          >
+                            Approve & Certify
+                          </button>
+                          
+                          <button 
+                            onClick={async () => {
+                              try {
+                                await api.post(`/admin/workers/${modalData[0].id}/reject`);
+                                alert('Worker Rejected');
+                                setModalType(null);
+                                window.location.reload();
+                              } catch (e) { alert('Failed to reject'); }
+                            }}
+                            className="w-full bg-white text-red-600 border border-red-200 font-bold py-4 rounded-xl uppercase tracking-wider text-sm hover:bg-red-50 transition-colors"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
               )}
             </div>
           </div>

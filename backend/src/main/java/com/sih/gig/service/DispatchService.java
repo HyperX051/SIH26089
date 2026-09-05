@@ -48,6 +48,12 @@ public class DispatchService {
 
     @Async
     public void startDispatch(Booking booking) {
+        if (booking.getLatitude() == null || booking.getLongitude() == null) {
+            log.error("Booking {} has null lat/lng — cannot dispatch", booking.getId());
+            updateBookingStatus(booking.getId(), "CANCELLED");
+            return;
+        }
+
         double lat = booking.getLatitude().doubleValue();
         double lng = booking.getLongitude().doubleValue();
 
@@ -73,6 +79,14 @@ public class DispatchService {
         }
 
         Worker worker = state.workers.next();
+
+        // Skip workers whose location has been cleared since dispatch started
+        if (worker.getLatitude() == null || worker.getLongitude() == null) {
+            log.warn("Worker {} has null lat/lng — skipping in dispatch cascade", worker.getId());
+            offerToNext(bookingId, booking, state);
+            return;
+        }
+
         state.currentWorkerId = worker.getId();
 
         double distKm = haversineKm(

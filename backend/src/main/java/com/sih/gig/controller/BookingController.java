@@ -107,4 +107,28 @@ public class BookingController {
         User currentUser = (User) auth.getPrincipal();
         return ResponseEntity.ok(ApiResponse.ok(bookingService.acceptJob(id, currentUser)));
     }
+
+    /** POST /api/v1/bookings/:id/customer-paid */
+    @PostMapping("/{id}/customer-paid")
+    public ResponseEntity<ApiResponse<?>> customerPaid(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(bookingService.customerPaid(id)));
+    }
+
+    /** POST /api/v1/bookings/:id/worker-confirm-payment */
+    @PostMapping("/{id}/worker-confirm-payment")
+    public ResponseEntity<ApiResponse<?>> workerConfirmPayment(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(bookingService.workerConfirmPayment(id)));
+    }
+
+    /** POST /api/v1/bookings/:id/rate */
+    @PostMapping("/{id}/rate")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<?>> rateBooking(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Integer> body,
+            Authentication auth) {
+        User currentUser = (User) auth.getPrincipal();
+        int stars = body.getOrDefault("stars", 0);
+        return ResponseEntity.ok(ApiResponse.ok(bookingService.rateBooking(id, stars, currentUser)));
+    }
 }

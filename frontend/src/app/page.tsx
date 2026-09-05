@@ -61,8 +61,8 @@ export default function Home() {
   const [issuePhoto, setIssuePhoto] = useState<File | null>(null);
   const [bookingId, setBookingId] = useState<string | null>(null);
   
-  
-  const [location, setLocation] = useState<{ latitude: number; longitude: number; address: string } | null>(null);
+  const [aiAssessment, setAiAssessment] = useState<any>(null);
+  const [location, setLocation] = useState<{ latitude: number; longitude: number; address: string; pincode: string } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState('');
   
@@ -79,12 +79,14 @@ export default function Home() {
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         let address = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        let pincode = '000000';
         try {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
           const data = await res.json();
           address = data.display_name || address;
+          pincode = data.address?.postcode?.replace(/\s/g, '').slice(0, 6) || '000000';
         } catch {}
-        setLocation({ latitude, longitude, address });
+        setLocation({ latitude, longitude, address, pincode });
         setLocationLoading(false);
       },
       (err) => {
@@ -143,8 +145,8 @@ export default function Home() {
         scheduledFor: finalScheduledFor,
         latitude: location.latitude,
         longitude: location.longitude,
-        pincode: "560001",
-        addressText: location.address || "Current Location",
+        pincode: location.pincode || '000000',
+        addressText: location.address || 'Current Location',
       };
 
       let response;

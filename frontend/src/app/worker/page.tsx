@@ -8,6 +8,8 @@ import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import { QRCodeCanvas } from 'qrcode.react';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
@@ -22,9 +24,9 @@ const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => 
   return R * c;
 };
 
-export default function WorkerApp() {
+export default function WorkerDashboard() {
   const router = useRouter();
-  const { user, token, logout } = useAuthStore();
+  const { user, token, logout, _hasHydrated } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'JOBS' | 'ACTIVE_JOB' | 'BILLING' | 'WELFARE' | 'PROFILE'>('JOBS');
   
   const [profile, setProfile] = useState<any>(null);
@@ -33,7 +35,7 @@ export default function WorkerApp() {
   // Job States
   const [radius, setRadius] = useState(10);
   const [availableJobs, setAvailableJobs] = useState<any[]>([]);
-  const [jobStatus, setJobStatus] = useState<'IDLE' | 'ACCEPTED' | 'IN_PROGRESS' | 'VERIFYING' | 'COMPLETED'>('IDLE');
+  const [jobStatus, setJobStatus] = useState<'IDLE' | 'ACCEPTED' | 'IN_PROGRESS' | 'VERIFYING' | 'PAYMENT_PENDING' | 'PAYMENT_CLAIMED' | 'COMPLETED'>('IDLE');
   
   // Job Execution States
   const [beforeImage, setBeforeImage] = useState<string | null>(null);
@@ -49,6 +51,7 @@ export default function WorkerApp() {
   const [activeJobDetails, setActiveJobDetails] = useState<any>(null);
 
   useEffect(() => {
+    if (!_hasHydrated) return;
     if (!token) {
       router.push('/worker/login');
       return;
@@ -126,6 +129,8 @@ export default function WorkerApp() {
         if (data.event === 'STATUS_CHANGED' && data.payload.status === 'CANCELLED') {
           alert("The customer has cancelled this booking.");
           resetJobState();
+        } else if (data.event === 'STATUS_CHANGED' && data.payload.status === 'PAYMENT_CLAIMED') {
+          setJobStatus('PAYMENT_CLAIMED');
         }
       });
       return () => sub.unsubscribe();
@@ -148,17 +153,20 @@ export default function WorkerApp() {
         }
       } catch (err) {
         console.error(err);
-        // DEMO MOCK DATA
-        setBilling([
-          { bookingId: 'BK-09871', completedAt: new Date(Date.now() - 86400000).toISOString(), totalEarnings: 1250, baseWage: 800, materialCost: 450 },
-          { bookingId: 'BK-09844', completedAt: new Date(Date.now() - 172800000).toISOString(), totalEarnings: 800, baseWage: 800, materialCost: 0 }
-        ]);
+        setBilling([]);
       }
     };
     if (user?.id && token) {
       fetchWorkerData();
     }
   }, [user?.id, token]);
+
+  // Sync radius from profile when loaded
+  useEffect(() => {
+    if (profile?.serviceRadiusKm) {
+      setRadius(Number(profile.serviceRadiusKm));
+    }
+  }, [profile?.serviceRadiusKm]);
 
   const acceptGig = async (job: any) => {
     if (acceptingJobId) return; // Prevent double clicks
@@ -181,19 +189,44 @@ export default function WorkerApp() {
     }
   };
 
-  const simulateOCR = async () => {
+  const simulateOCR = async (file: File) => {
     try {
-      const res = await api.post('/ai/ocr-receipt', { bookingId: activeBookingId, receiptImageUrl: 'mock_url' }, { headers: { Authorization: `Bearer ${token}` }});
+      const url = await uploadFile(file);
+      setReceiptImage(url as any);
+      const res = await api.post('/ai/ocr-receipt', { bookingId: activeBookingId, receiptImageUrl: url }, { headers: { Authorization: `Bearer ${token}` }});
       setOcrData(res.data.data);
     } catch (err) {
       console.error("OCR API failed:", err);
+      alert("Failed to process receipt.");
     }
+  };
+
+  const handleBeforeImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    try {
+      const url = await uploadFile(e.target.files[0]);
+      setBeforeImage(url);
+    } catch (err) { alert('Upload failed'); }
+  };
+
+  const handleAfterImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    try {
+      const url = await uploadFile(e.target.files[0]);
+      setAfterImage(url);
+      const res = await api.post('/ai/verify-repair', { bookingId: activeBookingId, beforeImageUrl: beforeImage, afterImageUrl: url }, { headers: { Authorization: `Bearer ${token}` }});
+      const data = res.data.data;
+      alert(`AI Audit Complete:\nVerified: ${data.verified}\nConfidence: ${data.confidence_score}\nNotes: ${data.notes}`);
+    } catch (err) { alert('Upload failed'); }
   };
 
   const verifyOTP = async () => {
     try {
-      await api.post(`/bookings/${activeBookingId}/verify-otp-complete`, { enteredOtp: otp }, { headers: { Authorization: `Bearer ${token}` }});
-      setJobStatus('COMPLETED');
+      const res = await api.post(`/bookings/${activeBookingId}/verify-otp-complete`, { enteredOtp: otp }, { headers: { Authorization: `Bearer ${token}` }});
+      setJobStatus('PAYMENT_PENDING');
+      if (res.data?.data?.payment_uri) {
+        setActiveJobDetails((prev: any) => ({ ...prev, payment_uri: res.data.data.payment_uri }));
+      }
     } catch (err) {
       console.error("OTP API failed:", err);
       alert("Invalid OTP or server error");
@@ -212,22 +245,31 @@ export default function WorkerApp() {
     setActiveTab('JOBS');
   };
 
+  const uploadFile = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post('/files/upload', formData, { 
+      headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${token}` }
+    });
+    return res.data.data.url;
+  };
+
   const handleCredentialUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     if (!user?.id) return;
     
     setUploadingCredential(true);
     try {
-      const res = await api.post('/ai/verify-credential', {
-        workerId: user.id,
-        certificateImageUrl: 'mock_uploaded_url'
+      const url = await uploadFile(e.target.files[0]);
+      const res = await api.post('/workers/profile/submit-kyc', {
+        certificateImageUrl: url
       }, { headers: { Authorization: `Bearer ${token}` } });
       
-      const aiData = res.data.data;
-      alert(`AI Credential Verification Complete:\nValid: ${aiData.is_valid}\nConfidence: ${aiData.confidence_score}\nNotes: ${aiData.notes}`);
+      setProfile((prev: any) => ({ ...prev, approval_status: 'PENDING', iti_certified: false }));
+      alert(`Document submitted successfully for manual Admin review!`);
     } catch (err) {
       console.error(err);
-      alert("Failed to verify credential. Please try again.");
+      alert("Failed to submit credential. Please try again.");
     } finally {
       setUploadingCredential(false);
       e.target.value = '';
@@ -245,11 +287,57 @@ export default function WorkerApp() {
     }
   };
 
+  const updateLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        // Reverse geocode to get human-readable address
+        let addressLabel = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
+          const data = await res.json();
+          if (data.display_name) {
+            // Show a shorter version: suburb + city
+            const a = data.address;
+            const parts = [a?.suburb || a?.neighbourhood, a?.city || a?.town || a?.village].filter(Boolean);
+            addressLabel = parts.length > 0 ? parts.join(', ') : data.display_name.split(',').slice(0, 2).join(',').trim();
+          }
+        } catch {}
+        try {
+          await api.patch('/workers/profile/details', { latitude, longitude }, { headers: { Authorization: `Bearer ${token}` }});
+          setProfile((prev: any) => ({ ...prev, latitude, longitude, locationAddress: addressLabel }));
+          alert(`Location updated: ${addressLabel}`);
+        } catch (err) {
+          console.error('Failed to update location', err);
+          alert('Failed to update location on the server.');
+        }
+      },
+      (err) => {
+        console.error('Geolocation error', err);
+        alert('Failed to get your location. Please check your browser permissions.');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const updateServiceRadius = async (newRadius: number) => {
+    setRadius(newRadius);
+    try {
+      await api.patch('/workers/profile/radius', { service_radius_km: newRadius }, { headers: { Authorization: `Bearer ${token}` }});
+    } catch (err) {
+      console.error('Failed to update radius', err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-card flex font-sans text-foreground selection:bg-black selection:text-white">
       
       {/* 1. Left Sidebar Navigation */}
-      <aside className="w-64 bg-background border-r border-border hidden md:flex flex-col shrink-0">
+      <aside className="w-64 bg-background border-r border-border hidden md:flex flex-col shrink-0 relative z-50">
         <div className="h-16 flex items-center px-6 border-b border-border">
           <Link href="/worker" className="flex items-center gap-2 cursor-pointer">
           <div className="w-8 h-8 flex items-center justify-center bg-background rounded text-foreground font-black tracking-tighter text-lg shadow-[2px_2px_0px_rgba(0,0,0,1)] border border-border">
@@ -260,16 +348,10 @@ export default function WorkerApp() {
         </div>
         
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          <button 
-            onClick={() => setActiveTab('ACTIVE_JOB')}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'ACTIVE_JOB' ? 'bg-zinc-900 text-white' : 'text-primary hover:bg-zinc-200 hover:text-foreground'}`}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-            Active Job
-          </button>
           {[
             { id: 'JOBS', label: 'Bulletin Board', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
-            { id: 'BILLING', label: 'Past Billing', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+            { id: 'ACTIVE_JOB', label: 'Active Job', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+            { id: 'BILLING', label: 'Past Jobs', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
             { id: 'WELFARE', label: 'Welfare & Benefits', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
             { id: 'PROFILE', label: 'Profile & Skills', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' }
           ].map(tab => (
@@ -300,7 +382,7 @@ export default function WorkerApp() {
       <main className="flex-1 flex flex-col h-screen overflow-hidden bg-card">
         <header className="h-16 flex items-center justify-between px-8 border-b border-border bg-card shrink-0">
           <h1 className="text-xl font-extrabold text-foreground tracking-tight">
-            {activeTab === 'JOBS' ? 'Dispatch Radar' : activeTab === 'ACTIVE_JOB' ? 'Execution Workflow' : activeTab === 'BILLING' ? 'Past Billing' : activeTab === 'WELFARE' ? 'Cooperative Welfare' : 'Professional Profile'}
+            {activeTab === 'JOBS' ? 'Dispatch Radar' : activeTab === 'ACTIVE_JOB' ? 'Execution Workflow' : activeTab === 'BILLING' ? 'Past Jobs' : activeTab === 'WELFARE' ? 'Cooperative Welfare' : 'Professional Profile'}
           </h1>
           {jobStatus !== 'IDLE' && jobStatus !== 'COMPLETED' && (
             <button 
@@ -326,7 +408,25 @@ export default function WorkerApp() {
               
               {/* Left Panel: Available Gigs & Radar */}
               <div className="w-full lg:w-1/3 flex flex-col gap-6">
-                
+                {(!profile?.aadhaar_verified && !profile?.iti_certified) ? (
+                  <div className="bg-red-50 p-6 border border-red-200 rounded-3xl shadow-sm flex flex-col gap-4 relative z-10">
+                    <h2 className="font-extrabold text-red-600 text-lg flex items-center gap-2">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                      Verification Required
+                    </h2>
+                    <p className="text-red-800 text-sm font-medium">
+                      You must upload your identity credentials and receive at least one verified badge before you can view and accept jobs.
+                    </p>
+                    <button 
+                      onClick={() => setActiveTab('PROFILE')} 
+                      type="button"
+                      style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+                      className="bg-red-600 text-white font-bold py-3 rounded-xl uppercase tracking-wider text-xs shadow-sm hover:bg-red-700 transition-colors mt-2 active:scale-95"
+                    >
+                      Verify Profile Now
+                    </button>
+                  </div>
+                ) : (
                   <>
                     <section className="bg-background p-6 border border-border rounded-3xl shadow-sm">
                       <h2 className="font-extrabold text-foreground mb-4 flex items-center gap-2">
@@ -343,6 +443,8 @@ export default function WorkerApp() {
                           min="1" max="50" 
                           value={radius} 
                           onChange={(e) => setRadius(Number(e.target.value))}
+                          onMouseUp={(e) => updateServiceRadius(Number((e.target as HTMLInputElement).value))}
+                          onTouchEnd={(e) => updateServiceRadius(Number((e.target as HTMLInputElement).value))}
                           className="w-full accent-black"
                         />
                       </div>
@@ -354,6 +456,21 @@ export default function WorkerApp() {
 
                     <section className="flex-1 overflow-y-auto">
                       <h3 className="font-bold text-muted-foreground mb-4 uppercase tracking-wider text-xs">Available Jobs</h3>
+                      
+                      {(!profile?.iti_certified || !profile?.upi_id) ? (
+                        <div className="bg-card p-8 border border-border shadow-sm text-center">
+                          <h2 className="text-2xl font-extrabold text-foreground mb-4">Verification Required</h2>
+                          <p className="text-muted-foreground text-sm font-medium mb-6">
+                            Your profile is incomplete. Please update your UPI ID and verify your trade credentials to start receiving jobs.
+                          </p>
+                          <button 
+                            onClick={() => setActiveTab('PROFILE')}
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 py-3 rounded-xl uppercase tracking-wider text-xs transition-colors shadow-sm"
+                          >
+                            Go to Profile
+                          </button>
+                        </div>
+                      ) : (
                       <div className="space-y-4">
                         {(() => {
                           const wLat = profile?.latitude || 12.9716;
@@ -419,23 +536,21 @@ export default function WorkerApp() {
                           ));
                         })()}
                       </div>
+                      )}
                     </section>
                   </>
-                </div>
+                )}
+              </div>
 
-              {/* Right Panel: Execution Workflow */}
-              <div className="w-full lg:w-2/3 bg-background border border-border rounded-3xl p-8 flex flex-col relative overflow-hidden shadow-sm">
-                
-                  <div className="absolute inset-0 z-0 overflow-hidden rounded-3xl">
-                    <MapPicker 
-                      initialPosition={{ 
-                        lat: profile?.latitude || 12.9716, 
-                        lng: profile?.longitude || 77.5946 
-                      }} 
-                      onLocationSelect={() => {}}
-                      radius={radius}
-                    />
-                  </div>
+              {/* Right Panel: Map */}
+              <div className="hidden lg:block w-2/3 bg-background border border-border rounded-3xl relative z-0 overflow-hidden shadow-sm">
+                <MapPicker 
+                  initialPosition={{ lat: profile?.latitude || 12.9716, lng: profile?.longitude || 77.5946 }}
+                  onLocationSelect={() => {}}
+                  readOnly
+                  radius={radius}
+                  jobs={(!profile?.aadhaar_verified && !profile?.iti_certified) ? [] : availableJobs}
+                />
               </div>
             </div>
           )}
@@ -539,18 +654,14 @@ export default function WorkerApp() {
                           <section className="bg-card p-6 border border-border">
                             <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider">1. AI Audit</h3>
                             <div className="space-y-3">
-                              <button 
-                                onClick={() => setBeforeImage("captured")}
-                                className={`w-full py-4 border border-dashed flex flex-col items-center justify-center font-bold text-sm transition-all ${beforeImage ? 'border-border bg-primary text-primary-foreground text-white' : 'border-zinc-300 text-muted-foreground hover:bg-background'}`}
-                              >
-                                {beforeImage ? "Before: Uploaded" : "Capture Before Photo"}
-                              </button>
-                              <button 
-                                onClick={() => setAfterImage("captured")}
-                                className={`w-full py-4 border border-dashed flex flex-col items-center justify-center font-bold text-sm transition-all ${afterImage ? 'border-border bg-primary text-primary-foreground text-white' : 'border-zinc-300 text-muted-foreground hover:bg-background'}`}
-                              >
-                                {afterImage ? "After: Uploaded" : "Capture After Photo"}
-                              </button>
+                              <label className={`w-full py-4 border border-dashed flex flex-col items-center justify-center font-bold text-sm transition-all cursor-pointer ${beforeImage ? 'border-border bg-primary text-primary-foreground text-white' : 'border-zinc-300 text-muted-foreground hover:bg-background'}`}>
+                                {beforeImage ? "Before: Uploaded" : "Upload Before Photo"}
+                                <input type="file" className="hidden" onChange={handleBeforeImage} accept="image/*" />
+                              </label>
+                              <label className={`w-full py-4 border border-dashed flex flex-col items-center justify-center font-bold text-sm transition-all cursor-pointer ${afterImage ? 'border-border bg-primary text-primary-foreground text-white' : 'border-zinc-300 text-muted-foreground hover:bg-background'}`}>
+                                {afterImage ? "After: Uploaded" : "Upload After Photo"}
+                                <input type="file" className="hidden" onChange={handleAfterImage} accept="image/*" disabled={!beforeImage} />
+                              </label>
                             </div>
                           </section>
 
@@ -558,10 +669,11 @@ export default function WorkerApp() {
                             <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider">2. Hardware Receipt</h3>
                             <div className="flex-1 flex flex-col justify-center">
                               {!receiptImage ? (
-                                <button onClick={() => { setReceiptImage("uploaded"); simulateOCR(); }} className="w-full py-8 bg-background flex flex-col items-center justify-center text-foreground font-bold border border-border hover:border-border transition-colors">
+                                <label className="w-full py-8 bg-background flex flex-col items-center justify-center text-foreground font-bold border border-border hover:border-border transition-colors cursor-pointer">
                                   <svg className="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                   Scan Bill via OCR
-                                </button>
+                                  <input type="file" className="hidden" onChange={(e) => { if (e.target.files?.[0]) simulateOCR(e.target.files[0]); }} accept="image/*" />
+                                </label>
                               ) : (
                                 <div className="bg-background h-full p-4 border border-border text-sm">
                                   {ocrData ? (
@@ -611,6 +723,43 @@ export default function WorkerApp() {
                       </div>
                     )}
 
+                    {jobStatus === 'PAYMENT_PENDING' && (
+                      <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50 p-4">
+                        <div className="bg-card border border-border p-10 text-center max-w-md w-full shadow-[8px_8px_0px_rgba(0,0,0,0.15)] animate-in zoom-in-95">
+                          <h2 className="text-3xl font-extrabold text-foreground mb-2">Awaiting Payment</h2>
+                          <p className="text-muted-foreground text-sm mb-6 font-medium">Please show this QR code to the customer to receive exact payment.</p>
+                          
+                          {activeJobDetails?.payment_uri && (
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-zinc-200 inline-block mb-6">
+                              <QRCodeCanvas value={activeJobDetails.payment_uri} size={200} level={"H"} />
+                            </div>
+                          )}
+
+                          <div className="h-full flex items-center justify-center text-muted-foreground text-xs font-bold uppercase tracking-wider animate-pulse">Waiting for Customer...</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {jobStatus === 'PAYMENT_CLAIMED' && (
+                      <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50 p-4">
+                        <div className="bg-card border border-border p-10 text-center max-w-md w-full shadow-[8px_8px_0px_rgba(0,0,0,0.15)] animate-in zoom-in-95">
+                          <h2 className="text-3xl font-extrabold text-foreground mb-2">Payment Claimed</h2>
+                          <p className="text-muted-foreground text-sm mb-8 font-medium">Did you receive ₹{activeJobDetails?.pricing?.total_amount || activeJobDetails?.estimated_wage || '0.00'}?</p>
+                          <button 
+                            onClick={async () => {
+                              try {
+                                await api.post(`/bookings/${activeBookingId}/worker-confirm-payment`, {}, { headers: { Authorization: `Bearer ${token}` }});
+                                setJobStatus('COMPLETED');
+                              } catch (err) { alert('Failed to confirm payment'); }
+                            }} 
+                            className="w-full bg-zinc-900 text-white py-4 font-bold uppercase tracking-wider transition-colors hover:bg-black rounded-xl"
+                          >
+                            Confirm Receipt
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {jobStatus === 'COMPLETED' && (
                       <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50 p-4">
                         <div className="bg-card border border-border p-10 text-center max-w-md w-full shadow-[8px_8px_0px_rgba(0,0,0,0.15)] animate-in zoom-in-95">
@@ -640,7 +789,7 @@ export default function WorkerApp() {
 
           {activeTab === 'BILLING' && (
             <div className="max-w-4xl">
-              <h2 className="text-3xl font-extrabold text-foreground mb-8">Past Billing</h2>
+              <h2 className="text-3xl font-extrabold text-foreground mb-8">Past Jobs</h2>
               {billing.length === 0 ? (
                 <div className="bg-background border border-border py-16 text-center">
                   <p className="text-muted-foreground text-sm font-medium">No past bookings found.</p>
@@ -701,6 +850,8 @@ export default function WorkerApp() {
 
           {activeTab === 'PROFILE' && (
             <div className="max-w-4xl">
+              <LanguageSwitcher />
+              
               <div className="flex items-center justify-between mb-10 pb-10 border-b border-border">
                 <div className="flex items-center gap-8">
                   <div className="w-32 h-32 bg-muted border border-border flex items-center justify-center text-5xl overflow-hidden shadow-sm rounded-2xl">
@@ -733,13 +884,42 @@ export default function WorkerApp() {
                 </div>
               </div>
 
+              {/* Location & Radius Section */}
+              <div className="bg-card border border-border shadow-sm rounded-2xl mb-10 overflow-hidden">
+                {/* GPS Row */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-6 border-b border-border">
+                  <div className="mb-4 md:mb-0">
+                    <h3 className="text-lg font-extrabold text-foreground mb-1">Current GPS Location</h3>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {profile?.locationAddress
+                        ? profile.locationAddress
+                        : profile?.latitude && profile?.longitude
+                        ? `${Number(profile.latitude).toFixed(5)}°N, ${Number(profile.longitude).toFixed(5)}°E`
+                        : 'Location not set — update GPS to receive nearby jobs.'}
+                    </p>
+                    {profile?.latitude && profile?.longitude && (
+                      <p className="text-xs text-muted-foreground mt-1 font-mono">
+                        {Number(profile.latitude).toFixed(6)}, {Number(profile.longitude).toFixed(6)}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={updateLocation}
+                    className="flex items-center gap-2 bg-foreground text-background font-bold px-6 py-3 rounded-xl text-sm transition-colors hover:bg-foreground/90 shadow-sm whitespace-nowrap"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    Update GPS
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <section className="bg-card p-8 border border-border shadow-sm rounded-2xl">
                   <h3 className="font-extrabold text-foreground mb-6 text-xl">Verified Credentials</h3>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center bg-background p-4 border border-border">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-primary text-primary-foreground text-white flex items-center justify-center">
+                        <div className={`w-10 h-10 flex items-center justify-center ${profile?.aadhaar_verified ? 'bg-primary text-primary-foreground text-white' : 'bg-zinc-200 text-muted-foreground'}`}>
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         </div>
                         <div>
@@ -747,12 +927,14 @@ export default function WorkerApp() {
                           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Aadhar / KYC</p>
                         </div>
                       </div>
-                      <span className="bg-primary text-primary-foreground text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1">Verified</span>
+                      <span className={`${profile?.aadhaar_verified ? 'bg-primary text-primary-foreground text-white' : 'bg-zinc-300 text-zinc-600'} text-[10px] font-bold uppercase tracking-widest px-3 py-1`}>
+                        {profile?.aadhaar_verified ? 'Verified' : 'Pending'}
+                      </span>
                     </div>
                     
                     <div className="flex justify-between items-center bg-background p-4 border border-border">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-primary text-primary-foreground text-white flex items-center justify-center">
+                        <div className={`w-10 h-10 flex items-center justify-center ${profile?.iti_certified ? 'bg-primary text-primary-foreground text-white' : 'bg-zinc-200 text-muted-foreground'}`}>
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                         </div>
                         <div>
@@ -760,21 +942,87 @@ export default function WorkerApp() {
                           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">ITI / NSQF</p>
                         </div>
                       </div>
-                      <span className="bg-primary text-primary-foreground text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1">Verified</span>
+                      <span className={`${profile?.iti_certified ? 'bg-primary text-primary-foreground text-white' : 'bg-zinc-300 text-zinc-600'} text-[10px] font-bold uppercase tracking-widest px-3 py-1`}>
+                        {profile?.iti_certified ? 'Verified' : 'Pending'}
+                      </span>
                     </div>
                   </div>
                   
                   <div className="mt-8 pt-6 border-t border-border">
-                    <label className={`w-full border border-dashed flex items-center justify-center border-zinc-300 text-muted-foreground hover:bg-background hover:text-foreground hover:border-border font-bold text-xs uppercase tracking-wider py-4 transition-all cursor-pointer ${uploadingCredential ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                      {uploadingCredential ? 'Verifying with AI...' : '+ Upload New Credential / License'}
+                    {profile?.approval_status === 'PENDING' ? (
+                      <div className="w-full border border-dashed flex items-center justify-center border-yellow-300 bg-yellow-50 text-yellow-700 font-bold text-xs uppercase tracking-wider py-4 rounded-xl">
+                        Pending Admin Approval
+                      </div>
+                    ) : (
+                      <label className={`w-full border border-dashed flex items-center justify-center border-zinc-300 text-muted-foreground hover:bg-background hover:text-foreground hover:border-border font-bold text-xs uppercase tracking-wider py-4 transition-all cursor-pointer rounded-xl ${uploadingCredential ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        {uploadingCredential ? 'Uploading...' : '+ Upload New Credential / License'}
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*,.pdf" 
+                          disabled={uploadingCredential}
+                          onChange={handleCredentialUpload}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </section>
+
+                <section className="bg-card p-8 border border-border shadow-sm rounded-2xl flex flex-col">
+                  <h3 className="font-extrabold text-foreground mb-6 text-xl">Payment Details</h3>
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">UPI ID</label>
+                    <div className="flex gap-3 mb-6">
                       <input 
-                        type="file" 
-                        className="hidden" 
-                        accept="image/*,.pdf" 
-                        disabled={uploadingCredential}
-                        onChange={handleCredentialUpload}
+                        type="text" 
+                        className="flex-1 bg-background border border-border px-4 py-3 text-foreground font-mono transition-colors focus:border-black focus:outline-none" 
+                        value={profile?.upi_id || ''}
+                        onChange={(e) => setProfile((prev: any) => ({ ...prev, upi_id: e.target.value }))}
+                        placeholder="worker@upi" 
                       />
-                    </label>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <button 
+                        onClick={async () => {
+                          try {
+                            await api.patch('/workers/profile/details', { upiId: profile?.upi_id }, { headers: { Authorization: `Bearer ${token}` }});
+                            alert('UPI ID saved successfully!');
+                          } catch(e) {
+                            alert('Failed to save UPI ID');
+                          }
+                        }}
+                        disabled={!profile?.upi_id}
+                        className="w-full bg-primary hover:bg-zinc-800 text-primary-foreground font-bold py-4 text-xs uppercase tracking-wider rounded-xl transition-colors disabled:bg-zinc-200 disabled:text-zinc-500"
+                      >
+                        Save Details
+                      </button>
+
+                      <label className="w-full py-4 text-center border border-dashed border-zinc-300 text-muted-foreground hover:bg-background font-bold text-xs uppercase tracking-wider transition-all cursor-pointer rounded-xl">
+                        Upload QR Image
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*"
+                          onChange={async (e) => {
+                            if (!e.target.files?.[0]) return;
+                            const fd = new FormData();
+                            fd.append('qr', e.target.files[0]);
+                            try {
+                              const res = await api.post('/auth/parse-qr', fd);
+                              if (res.data.data?.upiId) {
+                                setProfile((prev: any) => ({ ...prev, upi_id: res.data.data.upiId }));
+                                alert('UPI ID extracted from QR!');
+                              } else {
+                                alert('Could not extract UPI ID. Please enter manually.');
+                              }
+                            } catch (err) {
+                              alert('Failed to parse QR code.');
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
                   </div>
                 </section>
               </div>

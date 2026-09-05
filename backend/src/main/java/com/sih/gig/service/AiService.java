@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.file.Path;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -54,7 +55,7 @@ public class AiService {
             return result;
         } catch (Exception e) {
             log.error("Gemini AI failed for repair verify", e);
-            return Map.of("verified", true, "confidence_score", 0.8, "notes", "[Fallback] Approved automatically.");
+            return Map.of("verified", false, "confidence_score", 0.0, "notes", "[Error] AI Audit Failed. Please ensure API Key is valid or image is clear.");
         }
     }
 
@@ -108,7 +109,7 @@ public class AiService {
             );
         } catch (Exception e) {
             log.error("Gemini AI failed for Credential verification", e);
-            return Map.of("verified", true, "institute_or_issuer", "Local Authority", "recommended_tier", "SKILLED");
+            return Map.of("verified", false, "institute_or_issuer", "Unknown", "recommended_tier", "BASIC");
         }
     }
 
@@ -119,7 +120,7 @@ public class AiService {
             
             // Reusing callGeminiVision by passing a dummy 1x1 transparent pixel or we can just make a text-only call.
             // Since callGeminiVision requires an image URL, we'll construct a text-only payload instead for this specific method.
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + aiApiKey;
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + aiApiKey;
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             
@@ -152,37 +153,53 @@ public class AiService {
 
     private String callGeminiVision(String prompt, String imageUrl) {
         try {
-            byte[] imageBytes = restTemplate.getForObject(imageUrl, byte[].class);
-            String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+            byte[] imageBytes;
+            if (imageUrl.startsWith("/uploads/")) {
+                // Local file served by our own backend
+                Path filePath = java.nio.file.Paths.get("uploads", imageUrl.substring(9));
+                imageBytes = java.nio.file.Files.readAllBytes(filePath);
+            } else if (imageUrl.startsWith("http://localhost") || imageUrl.startsWith("http://127.0.0.1")) {
+                // Full localhost URL — strip to local path
+                String path = java.net.URI.create(imageUrl).getPath();
+                if (path.startsWith("/uploads/")) {
+                    Path filePath = java.nio.file.Paths.get("uploads", path.substring(9));
+                    imageBytes = java.nio.file.Files.readAllBytes(filePath);
+                } else {
+                    imageBytes = restTemplate.getForObject(imageUrl, byte[].class);
+                }
+            } else {
+                imageBytes = restTemplate.getForObject(imageUrl, byte[].class);
+            }
 
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + aiApiKey;
+            if (imageBytes == null || imageBytes.length == 0) {
+                throw new RuntimeException("Image bytes were empty for URL: " + imageUrl);
+            }
+
+            String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+            String mimeType = imageUrl.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+
+            String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + aiApiKey;
+
+            // Use ObjectMapper to safely construct request body (avoids manual escaping bugs)
+            Map<String, Object> textPart = Map.of("text", prompt);
+            Map<String, Object> inlineData = Map.of("mime_type", mimeType, "data", base64Image);
+            Map<String, Object> imagePart = Map.of("inline_data", inlineData);
+            Map<String, Object> content = Map.of("parts", List.of(textPart, imagePart));
+            Map<String, Object> requestBody = Map.of("contents", List.of(content));
+
+            String requestJson = objectMapper.writeValueAsString(requestBody);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            String requestBody = String.format("""
-                {
-                  "contents": [{
-                    "parts": [
-                      {"text": "%s"},
-                      {
-                        "inline_data": {
-                          "mime_type": "image/jpeg",
-                          "data": "%s"
-                        }
-                      }
-                    ]
-                  }]
-                }
-                """, prompt, base64Image);
+            HttpEntity<String> entity = new HttpEntity<>(requestJson, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(apiUrl, entity, String.class);
 
-            HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
-            
             JsonNode root = objectMapper.readTree(response.getBody());
             return root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
         } catch (Exception e) {
-            throw new RuntimeException("Gemini API call failed", e);
+            log.error("Gemini API call failed for imageUrl={}: {}", imageUrl, e.getMessage());
+            throw new RuntimeException("Gemini API call failed: " + e.getMessage(), e);
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.sih.gig.service;
 
 import com.sih.gig.dto.request.UpdateAvailabilityRequest;
+import com.sih.gig.dto.request.UpdateProfileDetailsRequest;
 import com.sih.gig.dto.request.UpdateRadiusRequest;
 import com.sih.gig.entity.User;
 import com.sih.gig.entity.Worker;
@@ -68,6 +69,54 @@ public class WorkerService {
     }
 
     /**
+     * PATCH /api/v1/workers/profile/details
+     */
+    @Transactional
+    public Map<String, Object> updateProfileDetails(User currentUser, UpdateProfileDetailsRequest req) {
+        Worker worker = getWorkerByUserId(currentUser.getId());
+        if (req.getUpiId() != null) {
+            worker.setUpiId(req.getUpiId());
+        }
+        if (req.getItiCertified() != null) {
+            worker.setItiCertified(req.getItiCertified());
+        }
+        if (req.getTier() != null) {
+            worker.setTier(req.getTier());
+        }
+        if (req.getLatitude() != null) {
+            worker.setLatitude(req.getLatitude());
+        }
+        if (req.getLongitude() != null) {
+            worker.setLongitude(req.getLongitude());
+        }
+        workerRepository.save(worker);
+        
+        return Map.of(
+            "worker_id", worker.getId().toString(),
+            "upi_id", worker.getUpiId() != null ? worker.getUpiId() : "",
+            "iti_certified", worker.getItiCertified() != null ? worker.getItiCertified() : false,
+            "tier", worker.getTier() != null ? worker.getTier() : "BASIC"
+        );
+    }
+
+    /**
+     * POST /api/v1/workers/profile/submit-kyc
+     */
+    @Transactional
+    public Map<String, Object> submitKyc(User currentUser, com.sih.gig.dto.request.SubmitKycRequest req) {
+        Worker worker = getWorkerByUserId(currentUser.getId());
+        worker.setCertificationUrl(req.getCertificateImageUrl());
+        worker.setApprovalStatus("PENDING");
+        worker.setItiCertified(false);
+        workerRepository.save(worker);
+        
+        return Map.of(
+            "message", "KYC submitted successfully and is pending admin approval.",
+            "status", "PENDING"
+        );
+    }
+
+    /**
      * GET Location
      */
     public Map<String, Object> getWorkerLocation(User currentUser) {
@@ -106,6 +155,9 @@ public class WorkerService {
         map.put("rating", worker.getRating());
         map.put("tier", worker.getTier());
         map.put("totalJobs", worker.getTotalJobs());
+        map.put("aadhaar_verified", worker.getAadhaarVerified());
+        map.put("iti_certified", worker.getItiCertified());
+        map.put("upi_id", worker.getUpiId());
         return map;
     }
 

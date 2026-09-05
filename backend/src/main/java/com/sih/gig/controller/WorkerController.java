@@ -1,6 +1,7 @@
 package com.sih.gig.controller;
 
 import com.sih.gig.dto.request.UpdateAvailabilityRequest;
+import com.sih.gig.dto.request.UpdateProfileDetailsRequest;
 import com.sih.gig.dto.request.UpdateRadiusRequest;
 import com.sih.gig.dto.response.ApiResponse;
 import com.sih.gig.entity.User;
@@ -34,6 +35,24 @@ public class WorkerController {
             Authentication auth) {
         User currentUser = (User) auth.getPrincipal();
         return ResponseEntity.ok(ApiResponse.ok(workerService.updateAvailability(currentUser, req)));
+    }
+
+    /** PATCH /api/v1/workers/profile/details */
+    @PatchMapping("/profile/details")
+    public ResponseEntity<ApiResponse<?>> updateProfileDetails(
+            @Valid @RequestBody UpdateProfileDetailsRequest req,
+            Authentication auth) {
+        User currentUser = (User) auth.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(workerService.updateProfileDetails(currentUser, req)));
+    }
+
+    /** POST /api/v1/workers/profile/submit-kyc */
+    @PostMapping("/profile/submit-kyc")
+    public ResponseEntity<ApiResponse<?>> submitKyc(
+            @Valid @RequestBody com.sih.gig.dto.request.SubmitKycRequest req,
+            Authentication auth) {
+        User currentUser = (User) auth.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(workerService.submitKyc(currentUser, req)));
     }
 
     /** GET /api/v1/workers/profile */

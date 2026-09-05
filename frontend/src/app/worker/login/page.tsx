@@ -8,10 +8,13 @@ import Link from 'next/link';
 
 export default function WorkerLogin() {
   const [mode, setMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('+91 ');
   const [password, setPassword] = useState('');
+  const [upiId, setUpiId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [qrUploading, setQrUploading] = useState(false);
   const router = useRouter();
   const setAuth = useAuthStore(state => state.setAuth);
 
@@ -22,7 +25,7 @@ export default function WorkerLogin() {
 
     try {
       if (mode === 'REGISTER') {
-        const res = await api.post('/auth/register', { phone, password, role: 'WORKER' });
+        const res = await api.post('/auth/register', { name, phone, password, role: 'WORKER', upiId });
         setAuth(res.data.data.token, res.data.data.user);
         router.push('/worker');
       } else {
@@ -34,6 +37,28 @@ export default function WorkerLogin() {
       setError(err.response?.data?.error?.message || err.response?.data?.message || 'An error occurred. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setError('');
+    setQrUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('qr', e.target.files[0]);
+      const res = await api.post('/auth/parse-qr', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data.data?.upiId) {
+        setUpiId(res.data.data.upiId);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message || err.response?.data?.message || 'Failed to parse QR code');
+    } finally {
+      setQrUploading(false);
+      // Reset input so they can try again if they want
+      e.target.value = '';
     }
   };
 
@@ -74,6 +99,45 @@ export default function WorkerLogin() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {mode === 'REGISTER' && (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-2 uppercase tracking-wider">Full Name</label>
+                <input 
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full bg-background border border-border rounded-xl p-4 text-foreground font-mono text-lg focus:outline-none focus:border-primary focus:bg-card transition-all shadow-sm"
+                  placeholder="John Doe"
+                  required={mode === 'REGISTER'}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-2 uppercase tracking-wider">UPI ID for Payments</label>
+                <div className="flex flex-col gap-3">
+                  <input 
+                    type="text"
+                    value={upiId}
+                    onChange={(e) => setUpiId(e.target.value)}
+                    className="w-full bg-background border border-border rounded-xl p-4 text-foreground font-mono text-lg focus:outline-none focus:border-primary focus:bg-card transition-all shadow-sm"
+                    placeholder="example@bank"
+                  />
+                  <label className={`w-full border border-dashed flex items-center justify-center border-zinc-300 text-muted-foreground hover:bg-background hover:text-foreground hover:border-border font-bold text-xs uppercase tracking-wider py-4 rounded-xl transition-all cursor-pointer ${qrUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    {qrUploading ? 'Parsing QR Code...' : 'Or Upload UPI QR Screenshot'}
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*" 
+                      disabled={qrUploading}
+                      onChange={handleQrUpload}
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-bold text-foreground mb-2 uppercase tracking-wider">Mobile Number</label>
             <input 

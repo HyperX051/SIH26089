@@ -37,6 +37,20 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.ok(adminService.getPendingKyc()));
     }
 
+    /** POST /api/v1/admin/workers/{id}/approve */
+    @PostMapping("/workers/{id}/approve")
+    public ResponseEntity<ApiResponse<?>> approveKyc(
+            @PathVariable java.util.UUID id,
+            @RequestBody(required = false) com.sih.gig.dto.request.ApproveKycRequest req) {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.approveKyc(id, req)));
+    }
+
+    /** POST /api/v1/admin/workers/{id}/reject */
+    @PostMapping("/workers/{id}/reject")
+    public ResponseEntity<ApiResponse<?>> rejectKyc(@PathVariable java.util.UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.rejectKyc(id)));
+    }
+
     /** GET /api/v1/admin/bookings/live */
     @GetMapping("/bookings/live")
     public ResponseEntity<ApiResponse<?>> getLiveBookings() {

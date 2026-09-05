@@ -48,4 +48,10 @@ public class AuthController {
         User currentUser = (User) auth.getPrincipal();
         return ResponseEntity.ok(ApiResponse.ok(authService.completeProfile(currentUser, name, photo)));
     }
+
+    /** POST /api/v1/auth/parse-qr */
+    @PostMapping(value = "/parse-qr", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<?>> parseQr(@RequestParam("qr") MultipartFile qrFile) {
+        return ResponseEntity.ok(ApiResponse.ok(authService.parseQr(qrFile)));
+    }
 }

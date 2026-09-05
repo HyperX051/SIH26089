@@ -8,6 +8,7 @@ import Link from 'next/link';
 
 export default function CustomerLogin() {
   const [mode, setMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('+91 ');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,13 +23,13 @@ export default function CustomerLogin() {
 
     try {
       if (mode === 'REGISTER') {
-        const res = await api.post('/auth/register', { phone, password, role: 'CUSTOMER' });
+        const res = await api.post('/auth/register', { name, phone, password, role: 'CUSTOMER' });
         setAuth(res.data.data.token, res.data.data.user);
-        router.push('/customer');
+        router.push('/');
       } else {
         const res = await api.post('/auth/login', { phone, password });
         setAuth(res.data.data.token, res.data.data.user);
-        router.push('/customer');
+        router.push('/');
       }
     } catch (err: any) {
       setError(err.response?.data?.error?.message || err.response?.data?.message || 'An error occurred. Please try again.');
@@ -74,6 +75,20 @@ export default function CustomerLogin() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {mode === 'REGISTER' && (
+            <div>
+              <label className="block text-xs font-bold text-foreground mb-2 uppercase tracking-wider">Full Name</label>
+              <input 
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl p-4 text-foreground font-mono text-lg focus:outline-none focus:border-primary focus:bg-card transition-all shadow-sm"
+                placeholder="Jane Doe"
+                required={mode === 'REGISTER'}
+              />
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-bold text-foreground mb-2 uppercase tracking-wider">Mobile Number</label>
             <input 

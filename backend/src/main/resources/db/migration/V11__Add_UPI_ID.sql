@@ -1,0 +1,1 @@
+ALTER TABLE workers ADD COLUMN upi_id VARCHAR(50);

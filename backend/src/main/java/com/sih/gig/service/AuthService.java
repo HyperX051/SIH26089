@@ -20,6 +20,14 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.io.InputStream;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import com.google.zxing.BinaryBitmap;
+import com.google.zxing.MultiFormatReader;
+import com.google.zxing.Result;
+import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
+import com.google.zxing.common.HybridBinarizer;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DEV NOTE: OTP sessions are stored in-memory (ConcurrentHashMap) because Redis
@@ -59,13 +67,17 @@ public class AuthService {
 
         User newUser = User.builder()
                 .phone(req.getPhone())
+                .name(req.getName())
                 .password(passwordEncoder.encode(req.getPassword()))
                 .role(req.getRole())
                 .build();
         User saved = userRepository.save(newUser);
 
         if ("WORKER".equals(req.getRole())) {
-            Worker worker = Worker.builder().user(saved).build();
+            Worker worker = Worker.builder()
+                .user(saved)
+                .upiId(req.getUpiId())
+                .build();
             workerRepository.save(worker);
         }
 
@@ -77,7 +89,7 @@ public class AuthService {
                 "user", Map.of(
                         "id", saved.getId().toString(),
                         "role", saved.getRole(),
-                        "name", ""
+                        "name", saved.getName() != null ? saved.getName() : ""
                 )
         );
     }
@@ -160,5 +172,30 @@ public class AuthService {
                         "photoUrl", photoUrl != null ? photoUrl : ""
                 )
         );
+    }
+
+    public Map<String, Object> parseQr(MultipartFile file) {
+        try (InputStream is = file.getInputStream()) {
+            BufferedImage bufferedImage = ImageIO.read(is);
+            if (bufferedImage == null) {
+                throw ApiException.badRequest("Invalid image file");
+            }
+            BufferedImageLuminanceSource source = new BufferedImageLuminanceSource(bufferedImage);
+            BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
+            Result result = new MultiFormatReader().decode(bitmap);
+            String text = result.getText();
+            
+            if (text != null && text.startsWith("upi://pay")) {
+                String[] params = text.split("\\?")[1].split("&");
+                for (String param : params) {
+                    if (param.startsWith("pa=")) {
+                        return Map.of("upiId", param.substring(3));
+                    }
+                }
+            }
+            throw ApiException.badRequest("No valid UPI ID (pa=) found in QR code");
+        } catch (Exception e) {
+            throw ApiException.badRequest("Failed to decode QR code: " + e.getMessage());
+        }
     }
 }

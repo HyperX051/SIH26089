@@ -64,6 +64,9 @@ public class Worker {
     @Column(name = "photo_url", length = 255)
     private String photoUrl;
 
+    @Column(name = "upi_id", length = 50)
+    private String upiId;
+
     @Column(name = "certification_url", length = 255)
     private String certificationUrl;
 

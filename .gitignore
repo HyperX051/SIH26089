@@ -34,3 +34,4 @@ node_modules/
 .next/
 jdk21/
 maven/
+backend/uploads/
