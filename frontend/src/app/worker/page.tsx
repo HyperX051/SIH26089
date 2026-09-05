@@ -856,7 +856,7 @@ export default function WorkerDashboard() {
                 <div className="flex items-center gap-8">
                   <div className="w-32 h-32 bg-muted border border-border flex items-center justify-center text-5xl overflow-hidden shadow-sm rounded-2xl">
                     {profile?.photoUrl ? (
-                      <img src={`http://localhost:8080${profile.photoUrl}`} alt="Worker Photo" className="w-full h-full object-cover" />
+                      <img src={`${process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8080'}${profile.photoUrl}`} alt="Worker Photo" className="w-full h-full object-cover" />
                     ) : (
                       <span className="font-extrabold text-foreground">{user?.name?.[0] || 'W'}</span>
                     )}

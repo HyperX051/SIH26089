@@ -589,7 +589,7 @@ export default function AdminApp() {
                       <p className="text-sm font-bold text-muted-foreground mb-4 uppercase tracking-wider">Uploaded Document</p>
                       <div className="border border-border p-2 bg-muted rounded-xl">
                         {modalData[0].certification_url ? (
-                          <img src={`http://localhost:8080${modalData[0].certification_url}`} alt="Worker Document" className="w-full object-contain max-h-[50vh] rounded-lg" />
+                          <img src={`${process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8080'}${modalData[0].certification_url}`} alt="Worker Document" className="w-full object-contain max-h-[50vh] rounded-lg" />
                         ) : (
                           <div className="h-[40vh] flex items-center justify-center text-muted-foreground font-bold">No document uploaded</div>
                         )}
