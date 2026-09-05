@@ -1,6 +1,6 @@
 "use client";
 
-import { useLanguageStore, LANGUAGES } from '@/store/useLanguageStore';
+import { useLanguageStore, LANGUAGES, type LangCode } from '@/store/useLanguageStore';
 
 function applyLang(code: string) {
   const domain = window.location.hostname;
@@ -16,7 +16,7 @@ export default function LanguageSwitcher({ compact }: { compact?: boolean }) {
     return (
       <select
         value={lang}
-        onChange={(e) => { setLang(e.target.value); applyLang(e.target.value); }}
+        onChange={(e) => { setLang(e.target.value as LangCode); applyLang(e.target.value); }}
         className="text-xs font-bold bg-background border border-border text-foreground px-2 py-1.5 rounded-lg cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
         title="Select Language"
       >
