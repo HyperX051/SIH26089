@@ -10,4 +10,5 @@ public class UpdateProfileDetailsRequest {
     private String tier;
     private BigDecimal latitude;
     private BigDecimal longitude;
+    private String servicePincode;
 }

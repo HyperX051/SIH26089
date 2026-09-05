@@ -332,7 +332,7 @@ public class BookingService {
      * POST /api/v1/bookings/:id/rate
      */
     @Transactional
-    public Map<String, Object> rateBooking(UUID bookingId, int stars, User customer) {
+    public Map<String, Object> rateBooking(UUID bookingId, int stars, String comment, User customer) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> ApiException.notFound("Booking not found"));
         if (!"COMPLETED".equals(booking.getStatus())) {
@@ -345,6 +345,9 @@ public class BookingService {
             throw ApiException.badRequest("Rating must be between 1 and 5");
         }
         booking.setCustomerRating(stars);
+        if (comment != null) {
+            booking.setCustomerComment(comment);
+        }
         bookingRepository.save(booking);
 
         // Update worker's aggregate rating
@@ -398,8 +401,31 @@ public class BookingService {
      * GET /api/v1/bookings/available
      */
     @Transactional(readOnly = true)
-    public java.util.List<Map<String, Object>> getAvailableBookings() {
+    public java.util.List<Map<String, Object>> getAvailableBookings(User workerUser) {
+        Worker worker = workerRepository.findByUserId(workerUser.getId())
+                .orElseThrow(() -> ApiException.notFound("Worker profile not found"));
+        
         return bookingRepository.findByStatus("SEARCHING").stream()
+                .filter(b -> {
+                    // Filter 1: If worker has a pincode and booking has a pincode, they must match
+                    if (worker.getServicePincode() != null && !worker.getServicePincode().isEmpty() &&
+                        b.getPincode() != null && !b.getPincode().isEmpty()) {
+                        if (!worker.getServicePincode().equals(b.getPincode())) {
+                            return false;
+                        }
+                    }
+                    // Filter 2: Geographic radius
+                    if (worker.getLatitude() != null && worker.getLongitude() != null && b.getLatitude() != null && b.getLongitude() != null) {
+                        double distKm = haversineKm(
+                            worker.getLatitude().doubleValue(), worker.getLongitude().doubleValue(),
+                            b.getLatitude().doubleValue(), b.getLongitude().doubleValue()
+                        );
+                        if (distKm > worker.getServiceRadiusKm().doubleValue()) {
+                            return false;
+                        }
+                    }
+                    return true;
+                })
                 .map(b -> {
                     Map<String, Object> map = new LinkedHashMap<>();
                     map.put("booking_id", b.getId().toString());
@@ -412,9 +438,30 @@ public class BookingService {
                     map.put("pincode", b.getPincode());
                     map.put("customer_phone", b.getCustomer() != null ? b.getCustomer().getPhone() : "");
                     map.put("address_text", b.getAddressText());
+                    
+                    if (worker.getLatitude() != null && worker.getLongitude() != null && b.getLatitude() != null && b.getLongitude() != null) {
+                        double distKm = haversineKm(
+                            worker.getLatitude().doubleValue(), worker.getLongitude().doubleValue(),
+                            b.getLatitude().doubleValue(), b.getLongitude().doubleValue()
+                        );
+                        map.put("distance_km", Math.round(distKm * 10.0) / 10.0);
+                    } else {
+                        map.put("distance_km", 0.0);
+                    }
                     return map;
                 })
                 .toList();
+    }
+
+    /** Haversine distance formula */
+    private double haversineKm(double lat1, double lng1, double lat2, double lng2) {
+        final double R = 6371.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                 + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                 * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     /**

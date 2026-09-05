@@ -1,0 +1,1 @@
+ALTER TABLE workers ADD COLUMN IF NOT EXISTS service_pincode VARCHAR(10);

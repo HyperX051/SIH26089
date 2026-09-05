@@ -89,13 +89,17 @@ public class WorkerService {
         if (req.getLongitude() != null) {
             worker.setLongitude(req.getLongitude());
         }
+        if (req.getServicePincode() != null) {
+            worker.setServicePincode(req.getServicePincode());
+        }
         workerRepository.save(worker);
         
         return Map.of(
             "worker_id", worker.getId().toString(),
             "upi_id", worker.getUpiId() != null ? worker.getUpiId() : "",
             "iti_certified", worker.getItiCertified() != null ? worker.getItiCertified() : false,
-            "tier", worker.getTier() != null ? worker.getTier() : "BASIC"
+            "tier", worker.getTier() != null ? worker.getTier() : "BASIC",
+            "service_pincode", worker.getServicePincode() != null ? worker.getServicePincode() : ""
         );
     }
 
@@ -158,6 +162,7 @@ public class WorkerService {
         map.put("aadhaar_verified", worker.getAadhaarVerified());
         map.put("iti_certified", worker.getItiCertified());
         map.put("upi_id", worker.getUpiId());
+        map.put("servicePincode", worker.getServicePincode());
         return map;
     }
 

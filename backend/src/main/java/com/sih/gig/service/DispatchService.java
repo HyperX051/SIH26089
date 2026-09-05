@@ -57,7 +57,12 @@ public class DispatchService {
         double lat = booking.getLatitude().doubleValue();
         double lng = booking.getLongitude().doubleValue();
 
-        List<Worker> nearbyWorkers = workerRepository.findNearbyAvailableWorkers(lat, lng, MAX_SEARCH_RADIUS_M);
+        List<Worker> nearbyWorkers;
+        if (booking.getPincode() != null && !booking.getPincode().isEmpty()) {
+            nearbyWorkers = workerRepository.findNearbyAvailableWorkersInPincode(lat, lng, MAX_SEARCH_RADIUS_M, booking.getPincode());
+        } else {
+            nearbyWorkers = workerRepository.findNearbyAvailableWorkers(lat, lng, MAX_SEARCH_RADIUS_M);
+        }
 
         if (nearbyWorkers.isEmpty()) {
             log.warn("No available workers found for booking {}", booking.getId());

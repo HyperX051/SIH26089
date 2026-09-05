@@ -68,6 +68,7 @@ function JobDetailPanel({ booking, token, onClose, onRefresh }: {
   booking: any; token: string; onClose: () => void; onRefresh: () => void;
 }) {
   const [rating, setRating] = useState<number>(booking.customer_rating || 0);
+  const [comment, setComment] = useState<string>(booking.customer_comment || "");
   const [submittingRating, setSubmittingRating] = useState(false);
   const [paying, setPaying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -84,7 +85,7 @@ function JobDetailPanel({ booking, token, onClose, onRefresh }: {
     if (!rating) return;
     setSubmittingRating(true);
     try {
-      await api.post(`/bookings/${booking.id}/rate`, { stars: rating }, { headers: { Authorization: `Bearer ${token}` } });
+      await api.post(`/bookings/${booking.id}/rate`, { stars: rating, comment }, { headers: { Authorization: `Bearer ${token}` } });
       onRefresh();
     } catch { alert("Failed to submit rating."); }
     finally { setSubmittingRating(false); }
@@ -312,10 +313,18 @@ function JobDetailPanel({ booking, token, onClose, onRefresh }: {
                   <p className="text-sm text-muted-foreground">How was your experience{booking.worker_name ? ` with ${booking.worker_name}` : ''}?</p>
                   <StarRating value={rating} onChange={setRating} />
                   {rating > 0 && (
-                    <button onClick={handleSubmitRating} disabled={submittingRating}
-                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl transition-colors disabled:opacity-50 text-sm">
-                      {submittingRating ? 'Submitting…' : `Submit ${rating}-Star Rating`}
-                    </button>
+                    <div className="space-y-3 pt-2">
+                      <textarea
+                        value={comment}
+                        onChange={e => setComment(e.target.value)}
+                        placeholder="Tell us more about your experience (optional)"
+                        className="w-full bg-card border border-border rounded-xl p-3 text-sm min-h-[80px] focus:outline-none focus:border-primary transition-colors"
+                      />
+                      <button onClick={handleSubmitRating} disabled={submittingRating}
+                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl transition-colors disabled:opacity-50 text-sm">
+                        {submittingRating ? 'Submitting…' : `Submit ${rating}-Star Rating`}
+                      </button>
+                    </div>
                   )}
                 </div>
               )}

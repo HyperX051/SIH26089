@@ -114,12 +114,22 @@ export default function WorkerDashboard() {
       const sub = client.subscribe(`/topic/jobs`, (message) => {
         const data = JSON.parse(message.body);
         if (data.event === 'NEW_JOB_AVAILABLE') {
+          // Pincode filter
+          if (profile?.servicePincode && data.payload.pincode) {
+            if (profile.servicePincode !== data.payload.pincode) return;
+          }
+          // Radius filter
+          if (profile?.latitude && profile?.longitude && data.payload.latitude && data.payload.longitude) {
+            const distKm = haversineKm(profile.latitude, profile.longitude, data.payload.latitude, data.payload.longitude);
+            if (distKm > radius) return;
+          }
+          
           setAvailableJobs(prev => [data.payload, ...prev.filter(j => j.booking_id !== data.payload.booking_id)]);
         }
       });
       return () => sub.unsubscribe();
     }
-  }, [client, connected, jobStatus]);
+  }, [client, connected, jobStatus, profile, radius]);
 
   // Listen to Active Booking Status
   useEffect(() => {
@@ -982,17 +992,30 @@ export default function WorkerDashboard() {
                       />
                     </div>
 
+                    <div className="flex-1">
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Service Pincode</label>
+                      <div className="flex gap-3 mb-6">
+                        <input 
+                          type="text" 
+                          className="flex-1 bg-background border border-border px-4 py-3 text-foreground font-mono transition-colors focus:border-black focus:outline-none" 
+                          value={profile?.servicePincode || ''}
+                          onChange={(e) => setProfile((prev: any) => ({ ...prev, servicePincode: e.target.value }))}
+                          placeholder="e.g. 560001" 
+                        />
+                      </div>
+                    </div>
+
                     <div className="flex flex-col gap-3">
                       <button 
                         onClick={async () => {
                           try {
-                            await api.patch('/workers/profile/details', { upiId: profile?.upi_id }, { headers: { Authorization: `Bearer ${token}` }});
-                            alert('UPI ID saved successfully!');
+                            await api.patch('/workers/profile/details', { upiId: profile?.upi_id, servicePincode: profile?.servicePincode }, { headers: { Authorization: `Bearer ${token}` }});
+                            alert('Profile details saved successfully!');
                           } catch(e) {
-                            alert('Failed to save UPI ID');
+                            alert('Failed to save profile details');
                           }
                         }}
-                        disabled={!profile?.upi_id}
+                        disabled={!profile?.upi_id && !profile?.servicePincode}
                         className="w-full bg-primary hover:bg-zinc-800 text-primary-foreground font-bold py-4 text-xs uppercase tracking-wider rounded-xl transition-colors disabled:bg-zinc-200 disabled:text-zinc-500"
                       >
                         Save Details

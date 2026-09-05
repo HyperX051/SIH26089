@@ -25,6 +25,9 @@ public class Worker {
     @Column(name = "service_radius_km", precision = 6, scale = 2)
     private BigDecimal serviceRadiusKm = BigDecimal.valueOf(10.0);
 
+    @Column(name = "service_pincode", length = 10)
+    private String servicePincode;
+
     @Builder.Default
     @Column(name = "is_available")
     private Boolean isAvailable = Boolean.FALSE;

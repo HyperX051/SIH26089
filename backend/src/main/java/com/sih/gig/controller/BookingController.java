@@ -95,8 +95,10 @@ public class BookingController {
     }
     /** GET /api/v1/bookings/available */
     @GetMapping("/available")
-    public ResponseEntity<ApiResponse<?>> getAvailableBookings() {
-        return ResponseEntity.ok(ApiResponse.ok(bookingService.getAvailableBookings()));
+    @PreAuthorize("hasRole('WORKER')")
+    public ResponseEntity<ApiResponse<?>> getAvailableBookings(Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(bookingService.getAvailableBookings(user)));
     }
 
     /** POST /api/v1/bookings/:id/accept */
@@ -125,10 +127,11 @@ public class BookingController {
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<ApiResponse<?>> rateBooking(
             @PathVariable UUID id,
-            @RequestBody Map<String, Integer> body,
+            @RequestBody Map<String, Object> body,
             Authentication auth) {
         User currentUser = (User) auth.getPrincipal();
-        int stars = body.getOrDefault("stars", 0);
-        return ResponseEntity.ok(ApiResponse.ok(bookingService.rateBooking(id, stars, currentUser)));
+        int stars = body.containsKey("stars") ? Integer.parseInt(body.get("stars").toString()) : 0;
+        String comment = body.containsKey("comment") ? body.get("comment").toString() : null;
+        return ResponseEntity.ok(ApiResponse.ok(bookingService.rateBooking(id, stars, comment, currentUser)));
     }
 }

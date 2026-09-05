@@ -83,6 +83,9 @@ public class Booking {
     @Column(name = "customer_rating")
     private Integer customerRating;
 
+    @Column(name = "customer_comment", columnDefinition = "TEXT")
+    private String customerComment;
+
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = OffsetDateTime.now();
