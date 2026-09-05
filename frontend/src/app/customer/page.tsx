@@ -275,10 +275,9 @@ function JobDetailPanel({ booking, token, onClose, onRefresh }: {
               </button>
             </div>
           )}
-        </div>
 
-        {/* Cancel Confirm Modal Overlay */}
-        {showCancelConfirm && (
+          {/* Cancel Confirm Modal Overlay */}
+          {showCancelConfirm && (
           <div className="absolute inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col p-6 items-center justify-center">
             <h3 className="text-xl font-bold mb-2">Cancel Booking?</h3>
             <p className="text-sm text-muted-foreground text-center mb-6">
