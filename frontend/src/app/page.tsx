@@ -45,12 +45,23 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
+    
+    if (process.env.NEXT_PUBLIC_APP_TYPE === 'WORKER') {
+      if (!user || user.role !== 'WORKER') {
+        router.push('/worker/login');
+      } else {
+        router.push('/worker');
+      }
+      return;
+    }
+
+    // Default Customer App Logic
     if (user?.role === 'WORKER') {
       router.push('/worker');
     } else if (user?.role === 'ADMIN') {
       router.push('/admin');
     }
-  }, [user?.role, router]);
+  }, [user, router]);
 
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [showAllServices, setShowAllServices] = useState(false);
