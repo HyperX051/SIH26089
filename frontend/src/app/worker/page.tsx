@@ -344,7 +344,7 @@ export default function WorkerDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-card flex font-sans text-foreground selection:bg-black selection:text-white">
+    <div className="min-h-screen bg-card flex font-sans text-foreground selection:bg-black selection:text-white pb-20 md:pb-0">
       
       {/* 1. Left Sidebar Navigation */}
       <aside className="w-64 bg-background border-r border-border hidden md:flex flex-col shrink-0 relative z-50">
@@ -390,7 +390,7 @@ export default function WorkerDashboard() {
       
       {/* 2. Main Dashboard Area */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden bg-card">
-        <header className="h-16 flex items-center justify-between px-8 border-b border-border bg-card shrink-0">
+        <header className="h-16 flex items-center justify-between px-4 md:px-8 border-b border-border bg-card shrink-0">
           <h1 className="text-xl font-extrabold text-foreground tracking-tight">
             {activeTab === 'JOBS' ? 'Dispatch Radar' : activeTab === 'ACTIVE_JOB' ? 'Execution Workflow' : activeTab === 'BILLING' ? 'Past Jobs' : activeTab === 'WELFARE' ? 'Cooperative Welfare' : 'Professional Profile'}
           </h1>
@@ -411,7 +411,7 @@ export default function WorkerDashboard() {
           )}
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6 md:p-10">
+        <div className="flex-1 overflow-y-auto p-4 md:p-10">
           
           {activeTab === 'JOBS' && (
             <div className="w-full max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 h-full">
@@ -690,12 +690,12 @@ export default function WorkerDashboard() {
                                     <div className="h-full flex flex-col justify-between">
                                       <div>
                                         <div className="flex justify-between text-muted-foreground text-xs mb-3 uppercase tracking-wider"><span>Item</span><span>Price</span></div>
-                                        {ocrData.items?.map((i: any, idx: number) => (
-                                          <div key={idx} className="flex justify-between font-mono text-foreground mb-1"><span>{i.name}</span><span>₹{i.price}</span></div>
+                                        {ocrData.extracted_items?.map((i: any, idx: number) => (
+                                          <div key={idx} className="flex justify-between font-mono text-foreground mb-1"><span>{i.item}</span><span>₹{i.price}</span></div>
                                         ))}
                                       </div>
                                       <div className="border-t border-border pt-3 flex justify-between font-bold text-foreground">
-                                        <span>Total Added</span><span>₹{ocrData.total}</span>
+                                        <span>Total Added</span><span>₹{ocrData.total_receipt_amount}</span>
                                       </div>
                                     </div>
                                   ) : (
@@ -1054,6 +1054,26 @@ export default function WorkerDashboard() {
 
         </div>
       </main>
+
+      {/* 3. Bottom Navigation Bar for Mobile */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border flex items-center justify-around p-2 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        {[
+          { id: 'JOBS', label: 'Radar', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
+          { id: 'ACTIVE_JOB', label: 'Active', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+          { id: 'BILLING', label: 'Past', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+          { id: 'WELFARE', label: 'Welfare', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
+          { id: 'PROFILE', label: 'Profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' }
+        ].map(tab => (
+          <button 
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`flex flex-col items-center justify-center p-2 rounded-xl transition-colors ${activeTab === tab.id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon}></path></svg>
+            <span className="text-[10px] font-bold uppercase tracking-wider">{tab.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

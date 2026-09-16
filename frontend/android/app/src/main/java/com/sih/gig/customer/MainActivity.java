@@ -1,4 +1,4 @@
-package com.sih.gig.worker;
+package com.sih.gig.customer;
 
 import com.getcapacitor.BridgeActivity;
 

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Apna Kaam Partner</string>
-    <string name="title_activity_main">Apna Kaam Partner</string>
-    <string name="package_name">com.sih.gig.worker</string>
-    <string name="custom_url_scheme">com.sih.gig.worker</string>
+    <string name="app_name">Apna Kaam</string>
+    <string name="title_activity_main">Apna Kaam</string>
+    <string name="package_name">com.sih.gig.customer</string>
+    <string name="custom_url_scheme">com.sih.gig.customer</string>
 </resources>

@@ -233,7 +233,7 @@ export default function Home() {
             ) : (
               <div className="flex items-center gap-6">
                 <Link href="/customer" className="hidden md:block text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
-                  Past Bookings
+                  My Bookings
                 </Link>
                 <div className="flex items-center gap-3 border border-border pl-1 pr-4 py-1 rounded-full bg-card">
                   <Link href="/customer?tab=profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
