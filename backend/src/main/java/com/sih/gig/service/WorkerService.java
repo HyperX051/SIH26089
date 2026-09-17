@@ -51,7 +51,7 @@ public class WorkerService {
     @Transactional
     public Map<String, Object> updateAvailability(User currentUser, UpdateAvailabilityRequest req) {
         Worker worker = getWorkerByUserId(currentUser.getId());
-        worker.setIsAvailable(req.getIsAvailable());
+        worker.setIsAvailable(req.getAvailable());
 
         // Optionally update location
         if (req.getLatitude() != null && req.getLongitude() != null) {

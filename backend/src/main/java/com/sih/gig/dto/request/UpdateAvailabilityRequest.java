@@ -9,7 +9,7 @@ public class UpdateAvailabilityRequest {
 
     @JsonProperty("is_available")
     @NotNull(message = "is_available is required")
-    private Boolean isAvailable;
+    private Boolean available;
 
     // Optional: current location for geo-updates
     private Double latitude;
