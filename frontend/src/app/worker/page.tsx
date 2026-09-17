@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { QRCodeCanvas } from 'qrcode.react';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { Geolocation } from '@capacitor/geolocation';
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
@@ -297,41 +298,34 @@ export default function WorkerDashboard() {
     }
   };
 
-  const updateLocation = () => {
-    if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        // Reverse geocode to get human-readable address
-        let addressLabel = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
-          const data = await res.json();
-          if (data.display_name) {
-            // Show a shorter version: suburb + city
-            const a = data.address;
-            const parts = [a?.suburb || a?.neighbourhood, a?.city || a?.town || a?.village].filter(Boolean);
-            addressLabel = parts.length > 0 ? parts.join(', ') : data.display_name.split(',').slice(0, 2).join(',').trim();
-          }
-        } catch {}
-        try {
-          await api.patch('/workers/profile/details', { latitude, longitude }, { headers: { Authorization: `Bearer ${token}` }});
-          setProfile((prev: any) => ({ ...prev, latitude, longitude, locationAddress: addressLabel }));
-          alert(`Location updated: ${addressLabel}`);
-        } catch (err) {
-          console.error('Failed to update location', err);
-          alert('Failed to update location on the server.');
+  const updateLocation = async () => {
+    try {
+      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+      const { latitude, longitude } = pos.coords;
+      // Reverse geocode to get human-readable address
+      let addressLabel = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
+        const data = await res.json();
+        if (data.display_name) {
+          // Show a shorter version: suburb + city
+          const a = data.address;
+          const parts = [a?.suburb || a?.neighbourhood, a?.city || a?.town || a?.village].filter(Boolean);
+          addressLabel = parts.length > 0 ? parts.join(', ') : data.display_name.split(',').slice(0, 2).join(',').trim();
         }
-      },
-      (err) => {
-        console.error('Geolocation error', err);
-        alert('Failed to get your location. Please check your browser permissions.');
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+      } catch {}
+      try {
+        await api.patch('/workers/profile/details', { latitude, longitude }, { headers: { Authorization: `Bearer ${token}` }});
+        setProfile((prev: any) => ({ ...prev, latitude, longitude, locationAddress: addressLabel }));
+        alert(`Location updated: ${addressLabel}`);
+      } catch (err) {
+        console.error('Failed to update location', err);
+        alert('Failed to update location on the server.');
+      }
+    } catch (err) {
+      console.error('Geolocation error', err);
+      alert('Failed to get your location. Please check your browser or app permissions.');
+    }
   };
 
   const updateServiceRadius = async (newRadius: number) => {
@@ -628,7 +622,7 @@ export default function WorkerDashboard() {
                     )}
                   </div>
 
-                  <div className="w-full lg:w-2/3 bg-background border border-border rounded-3xl p-8 flex flex-col relative overflow-hidden shadow-sm">
+                  <div className="w-full lg:w-2/3 min-h-[300px] md:min-h-[400px] bg-background border border-border rounded-3xl p-8 flex flex-col relative overflow-hidden shadow-sm">
                     {jobStatus === 'ACCEPTED' && (
                       <div className="absolute inset-0 z-0 overflow-hidden rounded-3xl">
                         <div className="absolute top-4 right-4 z-10">
