@@ -271,8 +271,8 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> ApiException.notFound("Booking not found"));
 
-        if (!"PAYMENT_CLAIMED".equals(booking.getStatus())) {
-            throw ApiException.badRequest("Payment has not been claimed by customer yet");
+        if (!"PAYMENT_CLAIMED".equals(booking.getStatus()) && !"PAYMENT_PENDING".equals(booking.getStatus())) {
+            throw ApiException.badRequest("Payment is not in a confirmable state");
         }
 
         booking.setStatus("COMPLETED");

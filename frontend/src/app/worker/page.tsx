@@ -787,7 +787,25 @@ export default function WorkerDashboard() {
                             </div>
                           )}
 
-                          <div className="h-full flex items-center justify-center text-muted-foreground text-xs font-bold uppercase tracking-wider animate-pulse">Waiting for Customer...</div>
+                          <div className="h-full flex flex-col gap-4 items-center justify-center">
+                            <div className="text-muted-foreground text-xs font-bold uppercase tracking-wider animate-pulse">Waiting for Customer...</div>
+                            <div className="w-full flex items-center gap-2 mt-2">
+                              <div className="h-px bg-border flex-1"></div>
+                              <span className="text-xs text-muted-foreground font-bold">OR</span>
+                              <div className="h-px bg-border flex-1"></div>
+                            </div>
+                            <button 
+                              onClick={async () => {
+                                try {
+                                  await api.post(`/bookings/${activeBookingId}/worker-confirm-payment`, {}, { headers: { Authorization: `Bearer ${token}` }});
+                                  setJobStatus('COMPLETED');
+                                } catch (err) { alert('Failed to confirm payment'); }
+                              }} 
+                              className="w-full bg-zinc-900 text-white py-3 font-bold text-sm tracking-wider transition-colors hover:bg-black rounded-lg"
+                            >
+                              I have received Cash/Direct Payment
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
