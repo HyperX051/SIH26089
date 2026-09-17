@@ -30,6 +30,13 @@ export default function WorkerDashboard() {
   const { user, token, logout, _hasHydrated } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'JOBS' | 'ACTIVE_JOB' | 'BILLING' | 'WELFARE' | 'PROFILE'>('JOBS');
   
+  const [isNative, setIsNative] = useState(false);
+  useEffect(() => {
+    import('@capacitor/core').then(({ Capacitor }) => {
+      setIsNative(Capacitor.isNativePlatform());
+    });
+  }, []);
+
   const [profile, setProfile] = useState<any>(null);
   const [billing, setBilling] = useState<any[]>([]);
   
@@ -45,6 +52,7 @@ export default function WorkerDashboard() {
   const [ocrData, setOcrData] = useState<any>(null);
   const [otp, setOtp] = useState("");
   const [uploadingCredential, setUploadingCredential] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [acceptingJobId, setAcceptingJobId] = useState<string | null>(null);
 
   const { client, connected } = useStomp();
@@ -284,6 +292,34 @@ export default function WorkerDashboard() {
     } finally {
       setUploadingCredential(false);
       e.target.value = '';
+    }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setUploadingPhoto(true);
+    const formData = new FormData();
+    formData.append('file', e.target.files[0]);
+
+    try {
+      const res = await api.post('/files/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const photoUrl = res.data.data.url;
+      // Patch worker profile
+      await api.patch('/workers/profile/details', { photoUrl }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProfile((prev: any) => ({ ...prev, photoUrl }));
+      alert('Profile photo updated!');
+    } catch (err) {
+      console.error('Failed to upload photo', err);
+      alert('Failed to upload photo');
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -858,12 +894,26 @@ export default function WorkerDashboard() {
               
               <div className="flex items-center justify-between mb-10 pb-10 border-b border-border">
                 <div className="flex items-center gap-8">
-                  <div className="w-32 h-32 bg-muted border border-border flex items-center justify-center text-5xl overflow-hidden shadow-sm rounded-2xl">
+                  <div className="w-32 h-32 bg-muted border border-border flex items-center justify-center text-5xl overflow-hidden shadow-sm rounded-2xl relative group cursor-pointer">
                     {profile?.photoUrl ? (
                       <img src={`${process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8080'}${profile.photoUrl}`} alt="Worker Photo" className="w-full h-full object-cover" />
                     ) : (
                       <span className="font-extrabold text-foreground">{user?.name?.[0] || 'W'}</span>
                     )}
+                    
+                    <label className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity z-10 cursor-pointer md:opacity-0 focus-within:opacity-100 active:opacity-100" style={{ opacity: uploadingPhoto ? 1 : undefined }}>
+                      <svg className="w-6 h-6 text-white mb-1 drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                      <span className="text-white text-[10px] font-bold uppercase tracking-wider drop-shadow-md">
+                        {uploadingPhoto ? '...' : 'Upload'}
+                      </span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
+                        disabled={uploadingPhoto}
+                        onChange={handlePhotoUpload}
+                      />
+                    </label>
                   </div>
                   <div>
                     <h2 className="text-4xl font-extrabold text-foreground mb-2">{profile?.name || user?.name || "Professional"}</h2>
@@ -1049,25 +1099,27 @@ export default function WorkerDashboard() {
         </div>
       </main>
 
-      {/* 3. Bottom Navigation Bar for Mobile */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border flex items-center justify-around p-2 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        {[
-          { id: 'JOBS', label: 'Radar', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
-          { id: 'ACTIVE_JOB', label: 'Active', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
-          { id: 'BILLING', label: 'Past', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-          { id: 'WELFARE', label: 'Welfare', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
-          { id: 'PROFILE', label: 'Profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' }
-        ].map(tab => (
-          <button 
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`flex flex-col items-center justify-center p-2 rounded-xl transition-colors ${activeTab === tab.id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon}></path></svg>
-            <span className="text-[10px] font-bold uppercase tracking-wider">{tab.label}</span>
-          </button>
-        ))}
-      </nav>
+      {/* 3. Bottom Navigation Bar for Mobile (App only) */}
+      {isNative && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border flex items-center justify-around p-2 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+          {[
+            { id: 'JOBS', label: 'Radar', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
+            { id: 'ACTIVE_JOB', label: 'Active', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+            { id: 'BILLING', label: 'Past', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+            { id: 'WELFARE', label: 'Welfare', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
+            { id: 'PROFILE', label: 'Profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' }
+          ].map(tab => (
+            <button 
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex flex-col items-center justify-center p-2 rounded-xl transition-colors ${activeTab === tab.id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon}></path></svg>
+              <span className="text-[10px] font-bold uppercase tracking-wider">{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

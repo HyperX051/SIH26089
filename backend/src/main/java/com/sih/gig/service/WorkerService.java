@@ -92,6 +92,9 @@ public class WorkerService {
         if (req.getServicePincode() != null) {
             worker.setServicePincode(req.getServicePincode());
         }
+        if (req.getPhotoUrl() != null) {
+            worker.setPhotoUrl(req.getPhotoUrl());
+        }
         workerRepository.save(worker);
         
         return Map.of(
@@ -99,7 +102,8 @@ public class WorkerService {
             "upi_id", worker.getUpiId() != null ? worker.getUpiId() : "",
             "iti_certified", worker.getItiCertified() != null ? worker.getItiCertified() : false,
             "tier", worker.getTier() != null ? worker.getTier() : "BASIC",
-            "service_pincode", worker.getServicePincode() != null ? worker.getServicePincode() : ""
+            "service_pincode", worker.getServicePincode() != null ? worker.getServicePincode() : "",
+            "photoUrl", worker.getPhotoUrl() != null ? worker.getPhotoUrl() : ""
         );
     }
 

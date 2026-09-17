@@ -11,4 +11,5 @@ public class UpdateProfileDetailsRequest {
     private BigDecimal latitude;
     private BigDecimal longitude;
     private String servicePincode;
+    private String photoUrl;
 }
