@@ -11,6 +11,7 @@ import dynamic from 'next/dynamic';
 import { QRCodeCanvas } from 'qrcode.react';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { Geolocation } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
@@ -336,6 +337,17 @@ export default function WorkerDashboard() {
 
   const updateLocation = async () => {
     try {
+      if (Capacitor.isNativePlatform()) {
+        const permissions = await Geolocation.checkPermissions();
+        if (permissions.location !== 'granted') {
+          const req = await Geolocation.requestPermissions();
+          if (req.location !== 'granted') {
+            alert('Location permission denied. Map and tracking features will not work.');
+            return;
+          }
+        }
+      }
+      
       const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
       const { latitude, longitude } = pos.coords;
       // Reverse geocode to get human-readable address
