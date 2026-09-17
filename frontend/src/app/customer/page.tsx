@@ -239,12 +239,9 @@ function JobDetailPanel({ booking, token, onClose, onRefresh }: {
             <div className="px-6 py-5 space-y-3">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Payment Required</p>
               <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-                <p className="text-sm text-orange-700">Scan the QR code on the worker's device to pay <strong>₹{Number(booking.amount).toFixed(2)}</strong> via UPI, then confirm below.</p>
+                <p className="text-sm text-orange-700 mb-2">Please pay <strong>₹{Number(booking.amount).toFixed(2)}</strong> to the worker via their QR code or in cash.</p>
+                <p className="text-xs text-orange-600 font-medium">The booking will automatically complete once the worker confirms receipt on their device.</p>
               </div>
-              <button onClick={handlePaid} disabled={paying}
-                className="w-full bg-foreground hover:bg-foreground/90 text-background font-bold py-3.5 rounded-xl transition-colors disabled:opacity-50 text-sm">
-                {paying ? 'Updating…' : `Confirm Payment of ₹${Number(booking.amount).toFixed(2)}`}
-              </button>
             </div>
           )}
           {booking.status === 'PAYMENT_CLAIMED' && (
